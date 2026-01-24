@@ -1,0 +1,176 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Search, AlertTriangle } from 'lucide-react';
+import type { Tables } from '@/integrations/supabase/types';
+
+type Item = Tables<'items'>;
+
+export default function Inventory() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  async function fetchItems() {
+    const { data, error } = await supabase
+      .from('items')
+      .select('*')
+      .order('name');
+    
+    if (error) {
+      console.error('Error fetching items:', error);
+    } else {
+      setItems(data || []);
+    }
+    setLoading(false);
+  }
+
+  const filteredItems = items.filter(item => 
+    item.name.toLowerCase().includes(search.toLowerCase()) ||
+    item.sku.toLowerCase().includes(search.toLowerCase()) ||
+    item.category?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const lowStockItems = items.filter(item => 
+    (item.current_stock || 0) <= (item.reorder_level || 0) && item.is_active
+  );
+
+  const formatCurrency = (amount: number | null) => {
+    if (!amount) return '$0.00';
+    return new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: 'AUD',
+    }).format(amount);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
+          <p className="text-muted-foreground">Manage items and stock levels</p>
+        </div>
+        <Button asChild>
+          <Link to="/inventory/new">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Link>
+        </Button>
+      </div>
+
+      {lowStockItems.length > 0 && (
+        <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600" />
+          <div>
+            <p className="font-medium text-yellow-800 dark:text-yellow-200">Low Stock Alert</p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              {lowStockItems.length} item{lowStockItems.length !== 1 ? 's' : ''} below reorder level
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search items..." 
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[60px]"></TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">Cost</TableHead>
+              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">Stock</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No items found
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredItems.map((item) => {
+                const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      {item.image_url ? (
+                        <img 
+                          src={item.image_url} 
+                          alt={item.name} 
+                          className="h-10 w-10 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                          —
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                    <TableCell>
+                      <Link 
+                        to={`/inventory/${item.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{item.category || '-'}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unit_cost)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.sales_price)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
+                        {item.current_stock}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={item.is_active ? (isLowStock ? 'outline' : 'default') : 'secondary'}>
+                        {item.is_active ? (isLowStock ? 'Low Stock' : 'Active') : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

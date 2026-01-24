@@ -1,0 +1,1 @@
+ALTER TABLE purchase_allocations ADD COLUMN description text;
