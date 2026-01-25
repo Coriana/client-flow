@@ -61,6 +61,9 @@ router.post('/generate-invoice-pdf', authMiddleware, async (req: AuthRequest, re
       companyDisplayName = `${company.name} trading as ${company.trading_name}`;
     }
 
+    // Use trading name ABN if available, otherwise fall back to company ABN
+    const displayAbn = tradingName?.abn || company?.abn;
+
     let paymentDetailsHtml = '';
     if (tradingName) {
       const paymentParts: string[] = [];
@@ -141,7 +144,7 @@ router.post('/generate-invoice-pdf', authMiddleware, async (req: AuthRequest, re
           ${company?.address || ''}<br>
           ${company?.email ? `Email: ${company.email}` : ''}<br>
           ${company?.phone ? `Phone: ${company.phone}` : ''}<br>
-          ${company?.abn ? `ABN: ${company.abn}` : ''}
+          ${displayAbn ? `ABN: ${displayAbn}` : ''}
         </div>
       </div>
       <div>

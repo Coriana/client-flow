@@ -14,6 +14,7 @@ interface TradingName {
   name: string;
   is_default: boolean;
   is_active: boolean;
+  abn?: string;
   bank_name?: string;
   bank_bsb?: string;
   bank_account_number?: string;
@@ -34,6 +35,7 @@ export default function TradingNameCard({ tradingName, onSetDefault, onDelete, o
   const [isOpen, setIsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
+    abn: tradingName.abn || '',
     bank_name: tradingName.bank_name || '',
     bank_bsb: tradingName.bank_bsb || '',
     bank_account_number: tradingName.bank_account_number || '',
@@ -64,7 +66,7 @@ export default function TradingNameCard({ tradingName, onSetDefault, onDelete, o
         <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-70">
           {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           <span className="font-medium">{tradingName.name}</span>
-          {tradingName.is_default && (
+          {!!tradingName.is_default && (
             <Badge variant="secondary" className="gap-1">
               <Star className="h-3 w-3" />
               Default
@@ -86,7 +88,19 @@ export default function TradingNameCard({ tradingName, onSetDefault, onDelete, o
       </div>
       <CollapsibleContent className="px-3 pb-3">
         <div className="space-y-4 pt-2 border-t">
-          <h4 className="font-medium text-sm text-muted-foreground mt-3">Billing Details (shown on invoices)</h4>
+          <h4 className="font-medium text-sm text-muted-foreground mt-3">Business Details (shown on invoices)</h4>
+          
+          <div className="space-y-2">
+            <Label>ABN</Label>
+            <Input
+              value={formData.abn}
+              onChange={(e) => setFormData({ ...formData, abn: e.target.value })}
+              placeholder="e.g. 12 345 678 901"
+            />
+            <p className="text-xs text-muted-foreground">If set, this ABN will be used on invoices instead of the company ABN</p>
+          </div>
+
+          <h4 className="font-medium text-sm text-muted-foreground mt-3">Banking Details</h4>
           
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">

@@ -18,6 +18,7 @@ interface TradingName {
   name: string;
   is_default: boolean;
   is_active: boolean;
+  abn?: string;
   bank_name?: string;
   bank_bsb?: string;
   bank_account_number?: string;
@@ -524,7 +525,7 @@ export default function Settings() {
                             ({tr.rate}%)
                           </span>
                         </div>
-                        {tr.is_default && (
+                        {!!tr.is_default && (
                           <Badge variant="secondary" className="gap-1">
                             <Star className="h-3 w-3" />
                             Default

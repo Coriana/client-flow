@@ -83,6 +83,19 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (company_settings):', error);
   }
+
+  // Migration: Add abn to trading_names
+  try {
+    const tradingNamesColumns = database.pragma('table_info(trading_names)') as Array<{ name: string }>;
+    const tradingNamesColumnNames = tradingNamesColumns.map(c => c.name);
+    
+    if (!tradingNamesColumnNames.includes('abn')) {
+      database.exec("ALTER TABLE trading_names ADD COLUMN abn TEXT");
+      console.log('Migration: Added abn column to trading_names');
+    }
+  } catch (error) {
+    console.error('Migration error (trading_names):', error);
+  }
 }
 
 export function closeDatabase(): void {

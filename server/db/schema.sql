@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS vendor_contacts (
 CREATE TABLE IF NOT EXISTS trading_names (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  abn TEXT,
   bank_name TEXT,
   bank_bsb TEXT,
   bank_account_number TEXT,

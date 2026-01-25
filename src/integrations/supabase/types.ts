@@ -2712,6 +2712,7 @@ export type Database = {
       }
       trading_names: {
         Row: {
+          abn: string | null
           bank_account_name: string | null
           bank_account_number: string | null
           bank_bsb: string | null
@@ -2726,6 +2727,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          abn?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_bsb?: string | null
@@ -2740,6 +2742,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          abn?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_bsb?: string | null
