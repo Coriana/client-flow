@@ -133,6 +133,32 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (assets):', error);
   }
+
+  // Migration: Sync assigned_client_id for assets with active rentals
+  // This fixes existing job_assets that were created before the auto-assign feature
+  try {
+    const result = database.prepare(`
+      UPDATE assets 
+      SET assigned_client_id = (
+        SELECT jobs.client_id 
+        FROM job_assets 
+        JOIN jobs ON jobs.id = job_assets.job_id 
+        WHERE job_assets.asset_id = assets.id 
+          AND job_assets.is_active = 1 
+        ORDER BY job_assets.rental_start_date DESC 
+        LIMIT 1
+      )
+      WHERE id IN (
+        SELECT DISTINCT asset_id FROM job_assets WHERE is_active = 1
+      )
+      AND assigned_client_id IS NULL
+    `).run();
+    if (result.changes > 0) {
+      console.log(`Migration: Synced assigned_client_id for ${result.changes} assets with active rentals`);
+    }
+  } catch (error) {
+    console.error('Migration error (sync assigned_client_id):', error);
+  }
 }
 
 export function closeDatabase(): void {
