@@ -159,6 +159,43 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (sync assigned_client_id):', error);
   }
+
+  // Migration: Populate default_rental_rate from active job_assets (GST-inclusive)
+  // Only runs for assets that don't have a default_rental_rate set yet
+  // Adds 10% GST to make the rate inclusive (set INCLUDE_GST to false to skip)
+  const INCLUDE_GST = true;
+  const GST_MULTIPLIER = INCLUDE_GST ? 1.1 : 1.0;
+  try {
+    const result = database.prepare(`
+      UPDATE assets 
+      SET 
+        default_rental_rate = (
+          SELECT ROUND(job_assets.rental_rate * ${GST_MULTIPLIER}, 2)
+          FROM job_assets 
+          WHERE job_assets.asset_id = assets.id 
+            AND job_assets.is_active = 1 
+          ORDER BY job_assets.rental_start_date DESC 
+          LIMIT 1
+        ),
+        default_billing_frequency = (
+          SELECT job_assets.billing_frequency
+          FROM job_assets 
+          WHERE job_assets.asset_id = assets.id 
+            AND job_assets.is_active = 1 
+          ORDER BY job_assets.rental_start_date DESC 
+          LIMIT 1
+        )
+      WHERE id IN (
+        SELECT DISTINCT asset_id FROM job_assets WHERE is_active = 1
+      )
+      AND default_rental_rate IS NULL
+    `).run();
+    if (result.changes > 0) {
+      console.log(`Migration: Set default_rental_rate (GST-inclusive: ${INCLUDE_GST}) for ${result.changes} assets from active rentals`);
+    }
+  } catch (error) {
+    console.error('Migration error (populate default_rental_rate):', error);
+  }
 }
 
 export function closeDatabase(): void {
