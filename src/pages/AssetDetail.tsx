@@ -108,6 +108,8 @@ export default function AssetDetail() {
     current_firmware: "",
     notes: "",
     image_url: null,
+    default_rental_rate: null,
+    default_billing_frequency: "monthly",
   });
 
   useEffect(() => {
@@ -738,6 +740,43 @@ export default function AssetDetail() {
                 value={asset.current_firmware || ""}
                 onChange={(e) => setAsset({ ...asset, current_firmware: e.target.value })}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Rental Defaults</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Set default rental values that will pre-populate when adding this asset to a job.
+            </p>
+            <div className="space-y-2">
+              <Label>Default Rental Rate</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="e.g. 100.00"
+                value={asset.default_rental_rate || ""}
+                onChange={(e) => setAsset({ ...asset, default_rental_rate: parseFloat(e.target.value) || null })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Default Billing Frequency</Label>
+              <Select
+                value={asset.default_billing_frequency || "monthly"}
+                onValueChange={(v) => setAsset({ ...asset, default_billing_frequency: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

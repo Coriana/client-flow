@@ -116,6 +116,23 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (trading_names):', error);
   }
+
+  // Migration: Add default_rental_rate and default_billing_frequency to assets
+  try {
+    const assetColumns = database.pragma('table_info(assets)') as Array<{ name: string }>;
+    const assetColumnNames = assetColumns.map(c => c.name);
+    
+    if (!assetColumnNames.includes('default_rental_rate')) {
+      database.exec("ALTER TABLE assets ADD COLUMN default_rental_rate REAL");
+      console.log('Migration: Added default_rental_rate column to assets');
+    }
+    if (!assetColumnNames.includes('default_billing_frequency')) {
+      database.exec("ALTER TABLE assets ADD COLUMN default_billing_frequency TEXT DEFAULT 'monthly'");
+      console.log('Migration: Added default_billing_frequency column to assets');
+    }
+  } catch (error) {
+    console.error('Migration error (assets):', error);
+  }
 }
 
 export function closeDatabase(): void {

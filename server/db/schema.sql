@@ -309,6 +309,8 @@ CREATE TABLE IF NOT EXISTS assets (
   notes TEXT,
   is_rental INTEGER DEFAULT 0,
   monthly_rate REAL,
+  default_rental_rate REAL,
+  default_billing_frequency TEXT DEFAULT 'monthly',
   rental_start_date TEXT,
   rented_to_client_id TEXT REFERENCES clients(id),
   next_invoice_date TEXT,

@@ -431,6 +431,11 @@ export default function JobDetail() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Auto-assign the asset to this job's client
+      if (job.client_id) {
+        await supabase.from('assets').update({ assigned_client_id: job.client_id }).eq('id', newJobAsset.asset_id);
+      }
+      
       toast({ title: 'Success', description: 'Asset rental added' });
       setNewJobAsset({
         asset_id: '',
@@ -445,12 +450,27 @@ export default function JobDetail() {
       setShowAssetForm(false);
       setAssetConflictWarning(null);
       fetchRelatedData();
+      fetchAllAssets(); // Refresh assets to reflect new assignment
     }
   }
 
   // Check conflict when asset or dates change in the form
   function handleAssetFormChange(updates: Partial<typeof newJobAsset>) {
-    const updatedAsset = { ...newJobAsset, ...updates };
+    let updatedAsset = { ...newJobAsset, ...updates };
+    
+    // If asset_id changed, pre-populate defaults from the asset
+    if (updates.asset_id) {
+      const selectedAsset = allAssets.find(a => a.id === updates.asset_id);
+      if (selectedAsset) {
+        if (selectedAsset.default_rental_rate) {
+          updatedAsset.rental_rate = String(selectedAsset.default_rental_rate);
+        }
+        if (selectedAsset.default_billing_frequency) {
+          updatedAsset.billing_frequency = selectedAsset.default_billing_frequency;
+        }
+      }
+    }
+    
     setNewJobAsset(updatedAsset);
     
     if (updatedAsset.asset_id && updatedAsset.rental_start_date) {
@@ -468,6 +488,10 @@ export default function JobDetail() {
   async function handleUpdateJobAsset() {
     if (!editingJobAsset) return;
 
+    // Get the original job_asset to check if is_active is changing
+    const originalJobAsset = jobAssets.find(ja => ja.id === editingJobAsset.id);
+    const isDeactivating = originalJobAsset?.is_active && !editingJobAsset.is_active;
+
     // Use the manually set next_invoice_date directly (user can now edit it)
     const { error } = await supabase.from('job_assets').update({
       rental_start_date: editingJobAsset.rental_start_date,
@@ -484,21 +508,56 @@ export default function JobDetail() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // If deactivating, check if there are other active rentals for this asset
+      if (isDeactivating && editingJobAsset.asset_id) {
+        const { data: remainingRentals } = await supabase
+          .from('job_assets')
+          .select('id')
+          .eq('asset_id', editingJobAsset.asset_id)
+          .eq('is_active', true)
+          .neq('id', editingJobAsset.id); // Exclude the one we just deactivated
+        
+        // If no other active rentals remain, clear the assigned_client_id
+        if (!remainingRentals || remainingRentals.length === 0) {
+          await supabase.from('assets').update({ assigned_client_id: null }).eq('id', editingJobAsset.asset_id);
+        }
+      }
+      
       toast({ title: 'Success', description: 'Asset rental updated' });
       setEditingJobAsset(null);
       fetchRelatedData();
+      fetchAllAssets(); // Refresh assets to reflect updated assignment
     }
   }
 
   async function handleDeleteJobAsset(jaId: string) {
     if (!confirm('Remove this asset from the job?')) return;
     
+    // Get the asset_id before deleting
+    const jobAssetToDelete = jobAssets.find(ja => ja.id === jaId);
+    const assetId = jobAssetToDelete?.asset_id;
+    
     const { error } = await supabase.from('job_assets').delete().eq('id', jaId);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Check if there are any remaining active rentals for this asset
+      if (assetId) {
+        const { data: remainingRentals } = await supabase
+          .from('job_assets')
+          .select('id')
+          .eq('asset_id', assetId)
+          .eq('is_active', true);
+        
+        // If no active rentals remain, clear the assigned_client_id
+        if (!remainingRentals || remainingRentals.length === 0) {
+          await supabase.from('assets').update({ assigned_client_id: null }).eq('id', assetId);
+        }
+      }
+      
       toast({ title: 'Success', description: 'Asset rental removed' });
       fetchRelatedData();
+      fetchAllAssets(); // Refresh assets to reflect updated assignment
     }
   }
 

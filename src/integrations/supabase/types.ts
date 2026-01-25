@@ -373,6 +373,8 @@ export type Database = {
           assigned_job_id: string | null
           created_at: string
           current_firmware: string | null
+          default_billing_frequency: string | null
+          default_rental_rate: number | null
           description: string | null
           id: string
           image_url: string | null
@@ -401,6 +403,8 @@ export type Database = {
           assigned_job_id?: string | null
           created_at?: string
           current_firmware?: string | null
+          default_billing_frequency?: string | null
+          default_rental_rate?: number | null
           description?: string | null
           id?: string
           image_url?: string | null
@@ -429,6 +433,8 @@ export type Database = {
           assigned_job_id?: string | null
           created_at?: string
           current_firmware?: string | null
+          default_billing_frequency?: string | null
+          default_rental_rate?: number | null
           description?: string | null
           id?: string
           image_url?: string | null

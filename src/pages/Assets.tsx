@@ -90,8 +90,8 @@ export default function Assets() {
               <TableHead>Asset Tag</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Rental</TableHead>
+              <TableHead>Assigned To</TableHead>
+              <TableHead>Default Rate</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -121,13 +121,23 @@ export default function Assets() {
                     </Link>
                   </TableCell>
                   <TableCell>{asset.asset_type || '-'}</TableCell>
-                  <TableCell>{asset.clients?.name || '-'}</TableCell>
                   <TableCell>
-                    {(asset as any).is_rental ? (
-                      <span className="text-sm">
-                        ${(asset as any).monthly_rate?.toFixed(2) || '0'}/mo
+                    {asset.clients?.name ? (
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        {asset.clients.name}
                       </span>
-                    ) : '-'}
+                    ) : (
+                      <span className="text-muted-foreground">Available</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {asset.default_rental_rate ? (
+                      <span className="text-sm">
+                        ${asset.default_rental_rate.toFixed(2)}/{asset.default_billing_frequency || 'monthly'}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusColors[asset.status] as any || 'secondary'}>
