@@ -777,6 +777,68 @@ router.patch('/:table', (req: AuthRequest, res: Response) => {
   }, { write: true });
 });
 
+// Bulk delete with query filters (e.g., DELETE /invoice_lines?invoice_id.eq=xxx)
+router.delete('/:table', (req: AuthRequest, res: Response) => {
+  const tableParam = Array.isArray(req.params.table) ? req.params.table[0] : req.params.table;
+  if (!tableParam || !allowedTables.has(tableParam)) {
+    res.status(400).json({ error: `Invalid table: ${tableParam || 'unknown'}` });
+    return;
+  }
+
+  withAuth(req, res, tableParam, async () => {
+    // Build WHERE clause from query params (e.g., invoice_id.eq=xxx)
+    const conditions: string[] = [];
+    const params: any[] = [];
+    
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value !== 'string') continue;
+      
+      if (key.endsWith('.eq')) {
+        const column = key.slice(0, -3);
+        // Only allow known safe column patterns
+        if (/^[a-z_]+$/i.test(column)) {
+          conditions.push(`${column} = ?`);
+          params.push(value);
+        }
+      }
+    }
+    
+    if (conditions.length === 0) {
+      res.status(400).json({ error: 'No filter conditions specified for bulk delete' });
+      return;
+    }
+    
+    const whereClause = conditions.join(' AND ');
+    
+    // Fetch records before delete for activity logging
+    const oldRecords = queryAll<any>(`SELECT * FROM ${tableParam} WHERE ${whereClause}`, params);
+    
+    const result = execute(`DELETE FROM ${tableParam} WHERE ${whereClause}`, params);
+
+    if (result.error) {
+      res.status(500).json({ error: result.error.message });
+      return;
+    }
+
+    // Log activity for each deleted record
+    for (const record of oldRecords.data || []) {
+      logActivity({
+        table: tableParam,
+        action: 'deleted',
+        entityId: record.id,
+        entityName: getEntityName(tableParam, record),
+        userId: req.user?.id || null,
+        oldValues: record,
+        newValues: null,
+        source: 'browser',
+      });
+    }
+
+    res.status(204).send();
+  }, { write: true });
+});
+
+// Single record delete by ID
 router.delete('/:table/:id', (req: AuthRequest, res: Response) => {
   const tableParam = Array.isArray(req.params.table) ? req.params.table[0] : req.params.table;
   const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

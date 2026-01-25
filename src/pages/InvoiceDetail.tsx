@@ -444,7 +444,12 @@ export default function InvoiceDetail() {
 
       // Only update lines for draft invoices
       if (isDraft) {
-        await supabase.from('invoice_lines').delete().eq('invoice_id', id);
+        const { error: deleteError } = await supabase.from('invoice_lines').delete().eq('invoice_id', id);
+        if (deleteError) {
+          toast({ title: 'Error', description: `Failed to update lines: ${deleteError.message}`, variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
         
         if (lines.length > 0) {
           const linesToInsert = lines.map((line, index) => ({
@@ -462,7 +467,12 @@ export default function InvoiceDetail() {
             job_asset_id: line.job_asset_id || null,
           }));
           
-          await supabase.from('invoice_lines').insert(linesToInsert);
+          const { error: insertError } = await supabase.from('invoice_lines').insert(linesToInsert);
+          if (insertError) {
+            toast({ title: 'Error', description: `Failed to add lines: ${insertError.message}`, variant: 'destructive' });
+            setSaving(false);
+            return;
+          }
         }
       }
 

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -117,6 +118,7 @@ export default function JobDetail() {
     billing_day: 1,
     rental_rate: '',
     invoice_lead_days: 7,
+    billing_in_advance: false,
   });
 
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function JobDetail() {
   async function fetchDefaultsForNewJob() {
     // Get default hourly rate, trading name, and billable defaults
     const [settingsRes, tradingRes] = await Promise.all([
-      supabase.from('company_settings').select('default_hourly_rate, default_billable_time, default_billable_expenses').limit(1).maybeSingle(),
+      supabase.from('company_settings').select('default_hourly_rate, default_billable_time, default_billable_expenses, default_billing_in_advance').limit(1).maybeSingle(),
       supabase.from('trading_names').select('id').eq('is_default', true).maybeSingle(),
     ]);
 
@@ -150,9 +152,11 @@ export default function JobDetail() {
     // Set billable defaults
     const defaultBillableTime = settingsRes.data?.default_billable_time ?? true;
     const defaultBillableExpenses = settingsRes.data?.default_billable_expenses ?? false;
+    const defaultBillingInAdvance = settingsRes.data?.default_billing_in_advance ?? false;
     setBillableDefaults({ time: defaultBillableTime, expenses: defaultBillableExpenses });
     setNewTime(prev => ({ ...prev, is_billable: defaultBillableTime }));
     setNewExpense(prev => ({ ...prev, is_billable: defaultBillableExpenses }));
+    setNewJobAsset(prev => ({ ...prev, billing_in_advance: defaultBillingInAdvance }));
 
     setJob(prev => ({
       ...prev,
@@ -419,6 +423,7 @@ export default function JobDetail() {
       billing_day: newJobAsset.billing_day,
       rental_rate: parseFloat(newJobAsset.rental_rate),
       invoice_lead_days: newJobAsset.invoice_lead_days,
+      billing_in_advance: newJobAsset.billing_in_advance,
       next_invoice_date: nextInvoiceDate.toISOString().split('T')[0],
       is_active: true,
     });
@@ -435,6 +440,7 @@ export default function JobDetail() {
         billing_day: 1,
         rental_rate: '',
         invoice_lead_days: 7,
+        billing_in_advance: false,
       });
       setShowAssetForm(false);
       setAssetConflictWarning(null);
@@ -470,6 +476,7 @@ export default function JobDetail() {
       billing_day: editingJobAsset.billing_day,
       rental_rate: editingJobAsset.rental_rate,
       invoice_lead_days: editingJobAsset.invoice_lead_days,
+      billing_in_advance: editingJobAsset.billing_in_advance,
       is_active: editingJobAsset.is_active,
       next_invoice_date: editingJobAsset.next_invoice_date,
     }).eq('id', editingJobAsset.id);
@@ -1118,6 +1125,14 @@ export default function JobDetail() {
                       <Label>Invoice Lead Days</Label>
                       <Input type="number" min="0" max="30" value={newJobAsset.invoice_lead_days} onChange={(e) => handleAssetFormChange({ invoice_lead_days: parseInt(e.target.value) || 7 })} />
                     </div>
+                    <div className="space-y-2 flex items-center gap-3 pt-6">
+                      <Switch
+                        id="billing_in_advance"
+                        checked={newJobAsset.billing_in_advance}
+                        onCheckedChange={(checked) => handleAssetFormChange({ billing_in_advance: checked })}
+                      />
+                      <Label htmlFor="billing_in_advance">Bill in advance (for upcoming period)</Label>
+                    </div>
                   </div>
                   <Button 
                     onClick={handleAddJobAsset}
@@ -1171,6 +1186,14 @@ export default function JobDetail() {
                     <div className="space-y-2">
                       <Label>Next Invoice Date</Label>
                       <Input type="date" value={editingJobAsset.next_invoice_date || ''} onChange={(e) => setEditingJobAsset({ ...editingJobAsset, next_invoice_date: e.target.value || null })} />
+                    </div>
+                    <div className="space-y-2 flex items-center gap-3 pt-6">
+                      <Switch
+                        id="edit_billing_in_advance"
+                        checked={editingJobAsset.billing_in_advance || false}
+                        onCheckedChange={(checked) => setEditingJobAsset({ ...editingJobAsset, billing_in_advance: checked })}
+                      />
+                      <Label htmlFor="edit_billing_in_advance">Bill in advance</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox

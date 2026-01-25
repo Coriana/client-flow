@@ -385,8 +385,14 @@ router.post('/generate-job-invoices', authMiddleware, async (req: AuthRequest, r
       assetsForJob.forEach(asset => {
         const assetInfo = queryOne<any>('SELECT * FROM assets WHERE id = ?', [asset.asset_id]).data;
         if (!assetInfo) return;
+        
+        // Determine billing period based on billing_in_advance flag
         const periodStart = new Date(asset.next_invoice_date);
-        periodStart.setMonth(periodStart.getMonth() - 1);
+        if (!asset.billing_in_advance) {
+          // Arrears billing: bill for previous period
+          periodStart.setMonth(periodStart.getMonth() - 1);
+        }
+        // Advance billing: bill for the current period (use next_invoice_date month as-is)
         const periodStr = periodStart.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
 
         const lineSubtotal = asset.rental_rate;

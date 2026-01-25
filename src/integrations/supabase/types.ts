@@ -872,6 +872,7 @@ export type Database = {
           currency_locale: string | null
           default_billable_expenses: boolean | null
           default_billable_time: boolean | null
+          default_billing_in_advance: boolean | null
           default_hourly_rate: number | null
           default_payment_terms: number | null
           default_role_id: string | null
@@ -899,6 +900,7 @@ export type Database = {
           currency_locale?: string | null
           default_billable_expenses?: boolean | null
           default_billable_time?: boolean | null
+          default_billing_in_advance?: boolean | null
           default_hourly_rate?: number | null
           default_payment_terms?: number | null
           default_role_id?: string | null
@@ -926,6 +928,7 @@ export type Database = {
           currency_locale?: string | null
           default_billable_expenses?: boolean | null
           default_billable_time?: boolean | null
+          default_billing_in_advance?: boolean | null
           default_hourly_rate?: number | null
           default_payment_terms?: number | null
           default_role_id?: string | null
@@ -1684,6 +1687,7 @@ export type Database = {
           asset_id: string
           billing_day: number
           billing_frequency: string
+          billing_in_advance: boolean
           created_at: string
           id: string
           invoice_lead_days: number
@@ -1698,6 +1702,7 @@ export type Database = {
           asset_id: string
           billing_day?: number
           billing_frequency?: string
+          billing_in_advance?: boolean
           created_at?: string
           id?: string
           invoice_lead_days?: number
@@ -1712,6 +1717,7 @@ export type Database = {
           asset_id?: string
           billing_day?: number
           billing_frequency?: string
+          billing_in_advance?: boolean
           created_at?: string
           id?: string
           invoice_lead_days?: number

@@ -600,6 +600,17 @@ export default function Settings() {
                   placeholder="0.00"
                 />
               </div>
+              <div className="flex items-center gap-3 pt-2">
+                <Switch
+                  id="default_billing_in_advance"
+                  checked={settings.default_billing_in_advance || false}
+                  onCheckedChange={(checked) => setSettings({ ...settings, default_billing_in_advance: checked })}
+                />
+                <div>
+                  <Label htmlFor="default_billing_in_advance">Bill asset rentals in advance</Label>
+                  <p className="text-sm text-muted-foreground">When enabled, invoices show the upcoming billing period (e.g., Feb invoice for Feb rent). When disabled, invoices show the previous period (arrears).</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

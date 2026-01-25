@@ -239,7 +239,13 @@ class QueryBuilder<T = any> {
           if (idEq) {
             url = `${API_URL}/${this.table}/${idEq}`;
           } else {
-            return { data: null, error: { message: 'No ID specified for delete' } };
+            // Support bulk delete with filters (e.g., .delete().eq('invoice_id', xxx))
+            const queryString = this.queryParams.toString();
+            if (queryString) {
+              url = `${API_URL}/${this.table}?${queryString}`;
+            } else {
+              return { data: null, error: { message: 'No ID or filter specified for delete' } };
+            }
           }
         }
         options.method = 'DELETE';

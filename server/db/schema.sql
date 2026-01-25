@@ -380,6 +380,7 @@ CREATE TABLE IF NOT EXISTS job_assets (
   billing_day INTEGER DEFAULT 1,
   invoice_lead_days INTEGER DEFAULT 7,
   next_invoice_date TEXT,
+  billing_in_advance INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -794,6 +795,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
   default_hourly_rate REAL DEFAULT 100,
   default_billable_time INTEGER DEFAULT 1,
   default_billable_expenses INTEGER DEFAULT 1,
+  default_billing_in_advance INTEGER DEFAULT 0,
   default_role_id TEXT REFERENCES roles(id),
   invoice_prefix TEXT DEFAULT 'INV-',
   invoice_next_number INTEGER DEFAULT 1,

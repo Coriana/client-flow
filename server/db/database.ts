@@ -42,20 +42,46 @@ export function initializeDatabase(): void {
 function runMigrations(database: Database.Database): void {
   // Migration: Add source and api_key_id columns to activity_log
   try {
-    const columns = database.pragma('table_info(activity_log)') as Array<{ name: string }>;
-    const columnNames = columns.map(c => c.name);
+    const activityColumns = database.pragma('table_info(activity_log)') as Array<{ name: string }>;
+    const activityColumnNames = activityColumns.map(c => c.name);
     
-    if (!columnNames.includes('source')) {
+    if (!activityColumnNames.includes('source')) {
       database.exec("ALTER TABLE activity_log ADD COLUMN source TEXT DEFAULT 'browser'");
       console.log('Migration: Added source column to activity_log');
     }
     
-    if (!columnNames.includes('api_key_id')) {
+    if (!activityColumnNames.includes('api_key_id')) {
       database.exec("ALTER TABLE activity_log ADD COLUMN api_key_id TEXT REFERENCES api_keys(id)");
       console.log('Migration: Added api_key_id column to activity_log');
     }
   } catch (error) {
-    console.error('Migration error:', error);
+    console.error('Migration error (activity_log):', error);
+  }
+
+  // Migration: Add billing_in_advance to job_assets
+  try {
+    const jobAssetsColumns = database.pragma('table_info(job_assets)') as Array<{ name: string }>;
+    const jobAssetsColumnNames = jobAssetsColumns.map(c => c.name);
+    
+    if (!jobAssetsColumnNames.includes('billing_in_advance')) {
+      database.exec("ALTER TABLE job_assets ADD COLUMN billing_in_advance INTEGER DEFAULT 0");
+      console.log('Migration: Added billing_in_advance column to job_assets');
+    }
+  } catch (error) {
+    console.error('Migration error (job_assets):', error);
+  }
+
+  // Migration: Add default_billing_in_advance to company_settings
+  try {
+    const settingsColumns = database.pragma('table_info(company_settings)') as Array<{ name: string }>;
+    const settingsColumnNames = settingsColumns.map(c => c.name);
+    
+    if (!settingsColumnNames.includes('default_billing_in_advance')) {
+      database.exec("ALTER TABLE company_settings ADD COLUMN default_billing_in_advance INTEGER DEFAULT 0");
+      console.log('Migration: Added default_billing_in_advance column to company_settings');
+    }
+  } catch (error) {
+    console.error('Migration error (company_settings):', error);
   }
 }
 

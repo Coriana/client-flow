@@ -42,12 +42,27 @@ export default function ClientDetail() {
   const [primaryContact, setPrimaryContact] = useState<any>(null);
 
   useEffect(() => {
-    if (!isNew && id) {
+    if (isNew) {
+      // Fetch default payment terms from company settings for new clients
+      fetchDefaultSettings();
+    } else if (id) {
       fetchClient();
       fetchRelatedData();
       fetchPrimaryContact();
     }
   }, [id, isNew]);
+
+  async function fetchDefaultSettings() {
+    const { data } = await supabase
+      .from('company_settings')
+      .select('default_payment_terms')
+      .limit(1)
+      .single();
+    
+    if (data?.default_payment_terms) {
+      setClient(prev => ({ ...prev, payment_terms: data.default_payment_terms }));
+    }
+  }
 
   async function fetchPrimaryContact() {
     const { data } = await supabase

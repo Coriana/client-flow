@@ -1,0 +1,62 @@
+# Optimized Dockerfile for Raspberry Pi / ARM64
+# Builds native modules in builder stage, copies to slim production image
+
+# Build stage - has all build tools
+FROM node:20-alpine AS builder
+
+# Build tools for native modules (better-sqlite3)
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Install deps, add Babel React plugin (SWC has no ARM64 Alpine binary), rebuild native modules
+RUN npm ci && \
+    npm install @vitejs/plugin-react && \
+    npm rebuild
+
+COPY . .
+
+# Use Docker-specific vite config (Babel instead of SWC)
+ENV VITE_API_URL=/api
+RUN npx vite build --config vite.config.docker.ts
+
+# Production stage - minimal runtime only  
+FROM node:20-alpine
+
+# Only runtime dependency for better-sqlite3
+RUN apk add --no-cache libstdc++
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Copy node_modules from builder (includes compiled native modules)
+COPY --from=builder /app/node_modules ./node_modules
+
+# Remove dev dependencies from copied node_modules
+RUN npm prune --omit=dev && \
+    npm install tsx && \
+    rm -rf /root/.npm /tmp/*
+
+# Copy built frontend
+COPY --from=builder /app/dist ./dist
+
+# Copy server source
+COPY server ./server
+
+EXPOSE 3001
+
+ENV NODE_ENV=production \
+    API_PORT=3001 \
+    DATABASE_PATH=/app/data/app.db \
+    JWT_SECRET=change-me-in-production \
+    CORS_ORIGIN=*
+
+RUN mkdir -p /app/data /app/server/uploads
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget -qO- http://localhost:3001/api/health || exit 1
+
+CMD ["npx", "tsx", "server/index.ts"]
