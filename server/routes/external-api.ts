@@ -156,10 +156,32 @@ const handleExternalRequest = async (req: Request, res: Response) => {
     } else if (req.method === 'POST') {
       const payload = req.body || {};
       if (!payload.id) payload.id = uuidv4();
+      
+      // Auto-generate required fields for specific tables
+      if (table === 'jobs' && !payload.job_number) {
+        const year = new Date().getFullYear();
+        const countResult = queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM jobs`, []);
+        const count = countResult.data?.cnt || 0;
+        payload.job_number = `JOB-${year}-${String(count + 1).padStart(4, '0')}`;
+      }
+      
+      if (table === 'invoices' && !payload.invoice_number) {
+        const year = new Date().getFullYear();
+        const countResult = queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM invoices`, []);
+        const count = countResult.data?.cnt || 0;
+        payload.invoice_number = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+      }
+      
       const columns = Object.keys(payload);
       const placeholders = columns.map(() => '?').join(', ');
       const values = Object.values(payload);
-      execute(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values);
+      const execResult = execute(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values);
+      
+      if (execResult.error) {
+        res.status(400).json({ error: execResult.error.message });
+        return;
+      }
+      
       result = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [payload.id]).data;
       statusCode = 201;
       
@@ -185,10 +207,21 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       // Fetch old record before update for activity logging
       const oldRecord = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [idParam]).data;
       
+      if (!oldRecord) {
+        res.status(404).json({ error: 'Record not found' });
+        return;
+      }
+      
       const payload = req.body || {};
       const sets = Object.keys(payload).map(key => `${key} = ?`).join(', ');
       const values = [...Object.values(payload), idParam];
-      execute(`UPDATE ${table} SET ${sets} WHERE id = ?`, values);
+      const execResult = execute(`UPDATE ${table} SET ${sets} WHERE id = ?`, values);
+      
+      if (execResult.error) {
+        res.status(400).json({ error: execResult.error.message });
+        return;
+      }
+      
       result = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [idParam]).data;
       
       // Log activity for API update
@@ -213,7 +246,18 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       // Fetch record before delete for activity logging
       const oldRecord = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [idParam]).data;
       
-      execute(`DELETE FROM ${table} WHERE id = ?`, [idParam]);
+      if (!oldRecord) {
+        res.status(404).json({ error: 'Record not found' });
+        return;
+      }
+      
+      const execResult = execute(`DELETE FROM ${table} WHERE id = ?`, [idParam]);
+      
+      if (execResult.error) {
+        res.status(400).json({ error: execResult.error.message });
+        return;
+      }
+      
       result = null;
       statusCode = 204;
       

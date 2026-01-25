@@ -139,6 +139,10 @@ curl -X GET "http://localhost:3001/api/external/jobs" \
 
 ### Create a Job
 
+**Note:** `job_number` is auto-generated if not provided (format: `JOB-YYYY-NNNN`).
+
+**Valid status values:** `prospect`, `active`, `on_hold`, `complete`, `archived`
+
 ```bash
 curl -X POST "http://localhost:3001/api/external/jobs" \
   -H "Authorization: Bearer sk_live_your_api_key_here" \
@@ -146,7 +150,7 @@ curl -X POST "http://localhost:3001/api/external/jobs" \
   -d '{
     "name": "Website Redesign",
     "client_id": "client-uuid-here",
-    "status": "in_progress",
+    "status": "active",
     "budget": 5000
   }'
 ```
@@ -164,13 +168,16 @@ curl -X GET "http://localhost:3001/api/external/invoices" \
 
 ### Create an Invoice
 
+**Note:** `invoice_number` is auto-generated if not provided (format: `INV-YYYY-NNNN`).
+
+**Valid status values:** `draft`, `sent`, `paid`, `overdue`, `cancelled`
+
 ```bash
 curl -X POST "http://localhost:3001/api/external/invoices" \
   -H "Authorization: Bearer sk_live_your_api_key_here" \
   -H "Content-Type: application/json" \
   -d '{
     "client_id": "client-uuid-here",
-    "invoice_number": "INV-001",
     "issue_date": "2026-01-25",
     "due_date": "2026-02-08",
     "subtotal": 1000,
@@ -373,7 +380,7 @@ clients = response.json()["data"]
 job_data = {
     "name": "New Project",
     "client_id": clients[0]["id"],
-    "status": "pending"
+    "status": "active"
 }
 response = requests.post(f"{BASE_URL}/jobs", headers=headers, json=job_data)
 new_job = response.json()["data"]
@@ -401,7 +408,7 @@ const jobResponse = await fetch(`${BASE_URL}/jobs`, {
   body: JSON.stringify({
     name: 'New Project',
     client_id: clients[0].id,
-    status: 'pending'
+    status: 'active'
   })
 });
 const { data: newJob } = await jobResponse.json();
