@@ -40,6 +40,12 @@ router.post('/generate-invoice-pdf', authMiddleware, async (req: AuthRequest, re
     const lines = queryAll<any>('SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY sort_order', [invoiceId]).data || [];
     const company = queryOne<any>('SELECT * FROM company_settings LIMIT 1').data || {};
 
+    // Get the default tax name from tax_rates or use "GST" as fallback
+    const defaultTaxRate = company?.default_tax_rate_id
+      ? queryOne<any>('SELECT name FROM tax_rates WHERE id = ?', [company.default_tax_rate_id]).data
+      : null;
+    const taxDisplayName = lines[0]?.tax_name || defaultTaxRate?.name || 'GST';
+
     let clientCredit = 0;
     if (invoice.client_id) {
       const creditInvoices = queryAll<any>(
@@ -179,7 +185,7 @@ router.post('/generate-invoice-pdf', authMiddleware, async (req: AuthRequest, re
           <th style="width: 50%">Description</th>
           <th>Qty</th>
           <th>Unit Price</th>
-          <th>Tax</th>
+          <th>${taxDisplayName}</th>
           <th>Total</th>
         </tr>
       </thead>
@@ -207,7 +213,7 @@ router.post('/generate-invoice-pdf', authMiddleware, async (req: AuthRequest, re
           <span>${formatCurrency(invoice.subtotal)}</span>
         </div>
         <div class="totals-row">
-          <span>Tax</span>
+          <span>${taxDisplayName}</span>
           <span>${formatCurrency(invoice.tax_total)}</span>
         </div>
         <div class="totals-row total">

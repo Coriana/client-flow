@@ -45,6 +45,13 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
     ).data || [];
     const company = queryOne<any>('SELECT * FROM company_settings LIMIT 1').data || {};
 
+    // Get the default tax name from tax_rates or use "GST" as fallback
+    const linesArray = Array.isArray(lines) ? lines : [lines];
+    const defaultTaxRate = company?.default_tax_rate_id
+      ? queryOne<any>('SELECT name FROM tax_rates WHERE id = ?', [company.default_tax_rate_id]).data
+      : null;
+    const taxDisplayName = linesArray[0]?.tax_name || defaultTaxRate?.name || 'GST';
+
     let companyDisplayName = company?.name || 'Company Name';
     if (tradingName?.name) {
       companyDisplayName = `${company?.name || 'Company'} trading as ${tradingName.name}`;
@@ -99,7 +106,7 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; width: 50%;">Description</th>
         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Unit Price</th>
-        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Tax</th>
+        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">${taxDisplayName}</th>
         <th style="text-align: right; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Total</th>
       </tr>
     </thead>
@@ -129,7 +136,7 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
         <span>${formatCurrency(invoice.subtotal)}</span>
       </div>
       <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-        <span>Tax</span>
+        <span>${taxDisplayName}</span>
         <span>${formatCurrency(invoice.tax_total)}</span>
       </div>
       <div style="display: flex; justify-content: space-between; border-top: 2px solid #1a1a1a; font-size: 18px; font-weight: 700; margin-top: 8px; padding-top: 16px;">

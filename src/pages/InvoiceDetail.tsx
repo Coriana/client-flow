@@ -831,7 +831,7 @@ export default function InvoiceDetail() {
                 <span>{formatCurrency(invoice.subtotal || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
+                <span className="text-muted-foreground">{lines[0]?.tax_name || defaultTaxRate?.name || 'GST'}</span>
                 <span>{formatCurrency(invoice.tax_total || 0)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold border-t pt-4">
