@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { queryOne, execute } from '../db/database.js';
 import { generateToken, authMiddleware, AuthRequest } from '../middleware/auth.js';
@@ -162,6 +163,58 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
       full_name: full_name || null
     }
   });
+});
+
+// Create API key (server-side key generation)
+router.post('/api-keys', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { name, scopes, expires_at, user_id } = req.body;
+
+  if (!name) {
+    res.status(400).json({ error: 'Key name is required' });
+    return;
+  }
+
+  // Generate a secure random key
+  const prefix = 'sk_live_';
+  const randomPart = randomBytes(24).toString('base64url');
+  const rawKey = prefix + randomPart;
+  
+  // Hash the key for storage
+  const keyHash = createHash('sha256').update(rawKey).digest('hex');
+  const keyPrefix = rawKey.substring(0, 12);
+
+  const id = uuidv4();
+  const keyUserId = user_id || req.user!.id;
+
+  try {
+    execute(
+      `INSERT INTO api_keys (id, name, key_hash, key_prefix, scopes, expires_at, user_id, created_by, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        id,
+        name,
+        keyHash,
+        keyPrefix,
+        JSON.stringify(scopes || ['*']),
+        expires_at || null,
+        keyUserId,
+        req.user!.id
+      ]
+    );
+
+    // Return the raw key - this is the only time it will be shown
+    res.json({
+      id,
+      name,
+      key: rawKey,
+      key_prefix: keyPrefix,
+      scopes: scopes || ['*'],
+      expires_at: expires_at || null,
+      user_id: keyUserId
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to create API key' });
+  }
 });
 
 export default router;

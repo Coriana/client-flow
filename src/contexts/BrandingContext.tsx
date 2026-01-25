@@ -50,13 +50,27 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (error) throw error;
 
       if (data) {
+        // Validate currency locale - must be a valid locale string like 'en-AU'
+        let currencyLocale = data.currency_locale || 'en-AU';
+        if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(currencyLocale)) {
+          console.warn(`Invalid currency_locale "${currencyLocale}", using default "en-AU"`);
+          currencyLocale = 'en-AU';
+        }
+
+        // Validate currency code - must be a 3-letter code
+        let currency = data.currency || 'AUD';
+        if (!/^[A-Z]{3}$/.test(currency)) {
+          console.warn(`Invalid currency "${currency}", using default "AUD"`);
+          currency = 'AUD';
+        }
+
         setBranding({
           appName: data.app_name || 'WorkFlow',
           logoUrl: data.logo_url,
           faviconUrl: data.favicon_url,
           companyName: data.name || 'My Company',
-          currency: data.currency || 'AUD',
-          currencyLocale: data.currency_locale || 'en-AU',
+          currency,
+          currencyLocale,
         });
       }
     } catch (error) {
@@ -86,10 +100,15 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [branding.appName]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(branding.currencyLocale, {
-      style: 'currency',
-      currency: branding.currency,
-    }).format(amount);
+    try {
+      return new Intl.NumberFormat(branding.currencyLocale, {
+        style: 'currency',
+        currency: branding.currency,
+      }).format(amount);
+    } catch (error) {
+      console.warn('Currency formatting error, using fallback:', error);
+      return `$${amount.toFixed(2)}`;
+    }
   };
 
   return (

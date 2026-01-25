@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    volumes:
+      # Mount data directory for database persistence
+      - ./data:/app/data
+      # Mount uploads directory for file storage
+      - ./server/uploads:/app/server/uploads
+    environment:
+      - NODE_ENV=production
+      - API_PORT=3001
+      - DATABASE_PATH=/app/data/app.db
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      # Mail settings (optional)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

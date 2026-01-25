@@ -81,7 +81,18 @@ All changes to key business entities are automatically logged:
 - **Tracked tables:** clients, jobs, invoices, estimates, payments, expenses, timesheets, inventory_items, purchases, assets, vendors, locations, profiles, company_settings
 - **Logged actions:** created, updated, deleted
 - **Stored data:** old values (for updates/deletes), new values (for creates/updates), entity name, user who made the change
-- View the activity log at `/activity-log`
+- **Source tracking:** logs whether changes came from the browser UI or external API
+- **API key attribution:** API-sourced changes show which API key was used
+- View the activity log at `/activity-log` with filtering by source (Browser/API)
+
+### External API
+
+Programmatic access for integrations and AI tools:
+- **API Keys:** Create and manage API keys at `/api-keys`
+- **Scoped access:** Limit keys to specific resources (clients, jobs, invoices, etc.)
+- **Request logging:** All API requests are logged with method, endpoint, status, duration, and IP address
+- **Per-key usage:** View request logs filtered by specific API key
+- See `api-examples.md` for detailed usage examples
 
 ### Reports
 

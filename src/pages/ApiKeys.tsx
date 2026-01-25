@@ -29,12 +29,16 @@ interface ApiKey {
 
 interface ApiRequestLog {
   id: string;
+  api_key_id: string | null;
   endpoint: string;
   method: string;
   status_code: number;
   response_summary: string;
   duration_ms: number;
+  ip_address: string | null;
+  user_agent: string | null;
   created_at: string;
+  api_key?: { name: string; key_prefix: string } | null;
 }
 
 interface Profile {
@@ -57,6 +61,8 @@ const AVAILABLE_SCOPES = [
   { value: 'banking', label: 'Banking' },
 ];
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export default function ApiKeys() {
   const { user } = useAuth();
   const { isOwner, canWrite } = usePermissions();
@@ -70,6 +76,7 @@ export default function ApiKeys() {
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newKeyValue, setNewKeyValue] = useState('');
   const [selectedKeyLogs, setSelectedKeyLogs] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('keys');
   
   // Create form state
   const [newKeyName, setNewKeyName] = useState('');
@@ -117,17 +124,44 @@ export default function ApiKeys() {
     }
   };
 
-  const fetchLogsForKey = async (keyId: string) => {
+  const fetchLogsForKey = async (keyId: string | null) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('api_request_log')
         .select('*')
-        .eq('api_key_id', keyId)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
+
+      if (keyId) {
+        query = query.eq('api_key_id', keyId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
-      setRequestLogs(data || []);
+
+      // Fetch API key names for the logs
+      const apiKeyIds = [...new Set((data || []).map(e => e.api_key_id).filter(Boolean))];
+      let apiKeyMap: Record<string, { name: string; key_prefix: string }> = {};
+      
+      if (apiKeyIds.length > 0) {
+        const { data: keys } = await supabase
+          .from('api_keys')
+          .select('id, name, key_prefix')
+          .in('id', apiKeyIds);
+        
+        apiKeyMap = (keys || []).reduce((acc, k) => {
+          acc[k.id] = { name: k.name, key_prefix: k.key_prefix };
+          return acc;
+        }, {} as Record<string, { name: string; key_prefix: string }>);
+      }
+
+      const logsWithKeyInfo = (data || []).map(log => ({
+        ...log,
+        api_key: log.api_key_id ? apiKeyMap[log.api_key_id] : null
+      }));
+
+      setRequestLogs(logsWithKeyInfo);
       setSelectedKeyLogs(keyId);
     } catch (error) {
       console.error('Error fetching logs:', error);
@@ -135,24 +169,8 @@ export default function ApiKeys() {
     }
   };
 
-  const generateApiKey = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const prefix = 'sk_live_';
-    let key = '';
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    for (let i = 0; i < 32; i++) {
-      key += chars[array[i] % chars.length];
-    }
-    return prefix + key;
-  };
-
-  const hashKey = async (key: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(key);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const fetchAllLogs = async () => {
+    await fetchLogsForKey(null);
   };
 
   const handleCreateKey = async () => {
@@ -162,10 +180,6 @@ export default function ApiKeys() {
     }
 
     try {
-      const rawKey = generateApiKey();
-      const keyHash = await hashKey(rawKey);
-      const keyPrefix = rawKey.substring(0, 12);
-      
       let expiresAt: string | null = null;
       if (newKeyExpiry !== 'never') {
         const days = parseInt(newKeyExpiry);
@@ -175,20 +189,29 @@ export default function ApiKeys() {
       }
 
       const keyUserId = isOwner && newKeyUserId ? newKeyUserId : user?.id;
+      const token = localStorage.getItem('auth_token');
 
-      const { error } = await supabase.from('api_keys').insert({
-        name: newKeyName,
-        key_hash: keyHash,
-        key_prefix: keyPrefix,
-        scopes: newKeyScopes,
-        expires_at: expiresAt,
-        user_id: keyUserId,
-        created_by: user?.id,
+      const response = await fetch(`${API_URL}/auth/api-keys`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newKeyName,
+          scopes: newKeyScopes,
+          expires_at: expiresAt,
+          user_id: keyUserId,
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      setNewKeyValue(rawKey);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create API key');
+      }
+
+      setNewKeyValue(data.key);
       setShowCreateDialog(false);
       setShowKeyDialog(true);
       setNewKeyName('');
@@ -242,9 +265,28 @@ export default function ApiKeys() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: 'Copied', description: 'API key copied to clipboard' });
+  const copyToClipboard = async (text: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for non-secure contexts (HTTP)
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      toast({ title: 'Copied', description: 'API key copied to clipboard' });
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      toast({ title: 'Error', description: 'Failed to copy to clipboard', variant: 'destructive' });
+    }
   };
 
   const getMethodColor = (method: string) => {
@@ -290,7 +332,12 @@ export default function ApiKeys() {
         </Button>
       </div>
 
-      <Tabs defaultValue="keys" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        if (value === 'logs' && requestLogs.length === 0) {
+          fetchAllLogs();
+        }
+      }} className="space-y-4">
         <TabsList>
           <TabsTrigger value="keys" className="flex items-center gap-2">
             <Key className="h-4 w-4" />
@@ -385,7 +432,11 @@ export default function ApiKeys() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => fetchLogsForKey(key.id)}
+                              title="View request logs for this key"
+                              onClick={() => {
+                                fetchLogsForKey(key.id);
+                                setActiveTab('logs');
+                              }}
                             >
                               <Activity className="h-4 w-4" />
                             </Button>
@@ -419,35 +470,52 @@ export default function ApiKeys() {
         <TabsContent value="logs">
           <Card>
             <CardHeader>
-              <CardTitle>Request Logs</CardTitle>
-              <CardDescription>
-                {selectedKeyLogs ? (
-                  <>Showing recent requests for selected API key</>
-                ) : (
-                  <>Select an API key from the Keys tab to view its request history</>
-                )}
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Request Logs</CardTitle>
+                  <CardDescription>
+                    {selectedKeyLogs ? (
+                      <>Showing requests for: <span className="font-medium text-foreground">{apiKeys.find(k => k.id === selectedKeyLogs)?.name || 'selected key'}</span></>
+                    ) : (
+                      <>Showing all API requests</>
+                    )}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {selectedKeyLogs && (
+                    <Button variant="outline" size="sm" onClick={fetchAllLogs}>
+                      Show All
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => fetchLogsForKey(selectedKeyLogs)}>
+                    Refresh
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {!selectedKeyLogs ? (
+              {requestLogs.length === 0 ? (
                 <div className="text-center py-8">
                   <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Click the activity icon on any API key to view its logs</p>
-                </div>
-              ) : requestLogs.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No requests logged for this API key</p>
+                  <p className="text-muted-foreground">No API requests logged yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">API requests will appear here when your keys are used</p>
+                  {requestLogs.length === 0 && !selectedKeyLogs && (
+                    <Button variant="outline" className="mt-4" onClick={fetchAllLogs}>
+                      Load Request Logs
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Time</TableHead>
+                      <TableHead>API Key</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead>Endpoint</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Duration</TableHead>
-                      <TableHead>Response</TableHead>
+                      <TableHead>IP Address</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -455,6 +523,16 @@ export default function ApiKeys() {
                       <TableRow key={log.id}>
                         <TableCell className="text-muted-foreground text-sm">
                           {format(new Date(log.created_at), 'MMM d, HH:mm:ss')}
+                        </TableCell>
+                        <TableCell>
+                          {log.api_key ? (
+                            <div className="flex items-center gap-1">
+                              <Key className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{log.api_key.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Unknown</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge className={getMethodColor(log.method)}>{log.method}</Badge>
@@ -468,8 +546,8 @@ export default function ApiKeys() {
                         <TableCell className="text-muted-foreground">
                           {log.duration_ms}ms
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm max-w-xs truncate">
-                          {log.response_summary}
+                        <TableCell className="text-muted-foreground text-sm">
+                          {log.ip_address || '-'}
                         </TableCell>
                       </TableRow>
                     ))}

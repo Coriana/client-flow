@@ -62,6 +62,8 @@ export type Database = {
           new_values: Json | null
           old_values: Json | null
           user_id: string | null
+          source: string | null
+          api_key_id: string | null
         }
         Insert: {
           action: string
@@ -74,6 +76,8 @@ export type Database = {
           new_values?: Json | null
           old_values?: Json | null
           user_id?: string | null
+          source?: string | null
+          api_key_id?: string | null
         }
         Update: {
           action?: string
@@ -86,8 +90,18 @@ export type Database = {
           new_values?: Json | null
           old_values?: Json | null
           user_id?: string | null
+          source?: string | null
+          api_key_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       api_keys: {
         Row: {

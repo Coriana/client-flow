@@ -8,7 +8,7 @@ import { format, formatDistanceToNow, startOfDay, subDays, isToday, isYesterday 
 import { 
   Users, Briefcase, FileText, DollarSign, AlertCircle, 
   Package, Box, Clock, Receipt, Building2, History,
-  Plus, Pencil, Trash2, ShieldAlert
+  Plus, Pencil, Trash2, ShieldAlert, Globe, Monitor, Key
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ActivityDetails from "@/components/ActivityDetails";
@@ -25,7 +25,10 @@ interface ActivityLogEntry {
   old_values: unknown;
   new_values: unknown;
   created_at: string;
+  source: string | null;
+  api_key_id: string | null;
   user?: { full_name: string | null; email: string | null } | null;
+  api_key?: { name: string; key_prefix: string } | null;
 }
 
 const ENTITY_TYPES = [
@@ -47,6 +50,12 @@ const ACTIONS = [
   { value: "created", label: "Created" },
   { value: "updated", label: "Updated" },
   { value: "deleted", label: "Deleted" },
+];
+
+const SOURCES = [
+  { value: "all", label: "All Sources" },
+  { value: "browser", label: "Browser" },
+  { value: "api", label: "API" },
 ];
 
 const DATE_RANGES = [
@@ -72,12 +81,13 @@ export default function ActivityLog() {
     );
   }
   const [actionFilter, setActionFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [dateRange, setDateRange] = useState("7");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActivityLog();
-  }, [entityTypeFilter, actionFilter, dateRange]);
+  }, [entityTypeFilter, actionFilter, sourceFilter, dateRange]);
 
   const fetchActivityLog = async () => {
     setLoading(true);
@@ -96,6 +106,9 @@ export default function ActivityLog() {
       }
       if (actionFilter !== "all") {
         query = query.eq("action", actionFilter);
+      }
+      if (sourceFilter !== "all") {
+        query = query.eq("source", sourceFilter);
       }
 
       const { data, error } = await query;
@@ -118,9 +131,26 @@ export default function ActivityLog() {
         }, {} as Record<string, { full_name: string | null; email: string | null }>);
       }
 
+      // Fetch API key names for API-sourced entries
+      const apiKeyIds = [...new Set((data || []).map(e => e.api_key_id).filter(Boolean))];
+      let apiKeyMap: Record<string, { name: string; key_prefix: string }> = {};
+      
+      if (apiKeyIds.length > 0) {
+        const { data: apiKeys } = await supabase
+          .from("api_keys")
+          .select("id, name, key_prefix")
+          .in("id", apiKeyIds);
+        
+        apiKeyMap = (apiKeys || []).reduce((acc, k) => {
+          acc[k.id] = { name: k.name, key_prefix: k.key_prefix };
+          return acc;
+        }, {} as Record<string, { name: string; key_prefix: string }>);
+      }
+
       const entriesWithUsers = (data || []).map(entry => ({
         ...entry,
-        user: entry.user_id ? userMap[entry.user_id] : null
+        user: entry.user_id ? userMap[entry.user_id] : null,
+        api_key: entry.api_key_id ? apiKeyMap[entry.api_key_id] : null
       }));
 
       setEntries(entriesWithUsers);
@@ -232,6 +262,17 @@ export default function ActivityLog() {
               </SelectContent>
             </Select>
 
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCES.map(source => (
+                  <SelectItem key={source.value} value={source.value}>{source.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Date Range" />
@@ -313,9 +354,28 @@ export default function ActivityLog() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                  <span>{entry.user?.full_name || entry.user?.email || "System"}</span>
+                                  {entry.source === 'api' ? (
+                                    <span className="flex items-center gap-1">
+                                      <Key className="h-3 w-3" />
+                                      {entry.api_key?.name || 'API'}
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1">
+                                      <Monitor className="h-3 w-3" />
+                                      {entry.user?.full_name || entry.user?.email || "System"}
+                                    </span>
+                                  )}
                                   <span>·</span>
                                   <span>{formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}</span>
+                                  {entry.source === 'api' && (
+                                    <>
+                                      <span>·</span>
+                                      <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                        <Globe className="h-3 w-3 mr-1" />
+                                        API
+                                      </Badge>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>

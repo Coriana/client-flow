@@ -2,87 +2,10 @@ import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, execute } from '../db/database.js';
 import { authMiddleware, optionalAuthMiddleware, AuthRequest, requirePermission } from '../middleware/auth.js';
+import { logActivity, getEntityName } from '../utils/activityLogger.js';
 import type { ParsedQs } from 'qs';
 
 const router = Router();
-
-// Tables that should have activity logging
-const loggedTables = new Set([
-  'clients',
-  'jobs',
-  'invoices',
-  'payments',
-  'expenses',
-  'purchases',
-  'items',
-  'assets',
-  'issues',
-  'vendors',
-  'locations',
-  'timesheets',
-  'profiles',
-  'bank_accounts',
-]);
-
-// Map table to the column that should be used as entity_name
-const entityNameColumn: Record<string, string> = {
-  clients: 'name',
-  jobs: 'name',
-  invoices: 'invoice_number',
-  payments: 'reference',
-  expenses: 'description',
-  purchases: 'description',
-  items: 'name',
-  assets: 'name',
-  issues: 'title',
-  vendors: 'name',
-  locations: 'name',
-  timesheets: 'description',
-  profiles: 'full_name',
-  bank_accounts: 'name',
-};
-
-// Log activity for create/update/delete operations
-function logActivity(
-  table: string,
-  action: 'created' | 'updated' | 'deleted',
-  entityId: string | null,
-  entityName: string | null,
-  userId: string | null,
-  oldValues: any | null,
-  newValues: any | null
-) {
-  if (!loggedTables.has(table)) return;
-
-  const id = uuidv4();
-  const description = `${action.toUpperCase()} ${table}`;
-  // Use ISO format with Z suffix so JavaScript correctly interprets as UTC
-  const createdAt = new Date().toISOString();
-
-  execute(
-    `INSERT INTO activity_log (id, entity_type, entity_id, entity_name, action, description, old_values, new_values, user_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      table,
-      entityId,
-      entityName,
-      action,
-      description,
-      oldValues ? JSON.stringify(oldValues) : null,
-      newValues ? JSON.stringify(newValues) : null,
-      userId,
-      createdAt,
-    ]
-  );
-}
-
-// Extract entity name from record based on table type
-function getEntityName(table: string, record: any): string | null {
-  const column = entityNameColumn[table];
-  if (!column || !record) return null;
-  return record[column] || null;
-}
 
 const tableResourceMap: Record<string, string> = {
   clients: 'clients',
@@ -129,6 +52,7 @@ const tableResourceMap: Record<string, string> = {
   accounts: 'banking',
   activity_log: 'settings',
   api_keys: 'settings',
+  api_request_log: 'settings',
 };
 
 const allowedTables = new Set(Object.keys(tableResourceMap));
@@ -660,15 +584,16 @@ router.post('/:table', (req: AuthRequest, res: Response) => {
         if (created.data) {
           results.push(created.data);
           // Log activity for batch insert
-          logActivity(
-            tableParam,
-            'created',
-            data.id,
-            getEntityName(tableParam, created.data),
-            req.user?.id || null,
-            null,
-            created.data
-          );
+          logActivity({
+            table: tableParam,
+            action: 'created',
+            entityId: data.id,
+            entityName: getEntityName(tableParam, created.data),
+            userId: req.user?.id || null,
+            oldValues: null,
+            newValues: created.data,
+            source: 'browser',
+          });
         }
       }
       res.status(201).json(results);
@@ -705,15 +630,16 @@ router.post('/:table', (req: AuthRequest, res: Response) => {
       const created = queryOne<any>(`SELECT * FROM ${tableParam} WHERE id = ?`, [data.id]);
       // Log activity for company_settings upsert
       if (created.data) {
-        logActivity(
-          tableParam,
-          'updated',
-          data.id,
-          getEntityName(tableParam, created.data),
-          req.user?.id || null,
-          null,
-          created.data
-        );
+        logActivity({
+          table: tableParam,
+          action: 'updated',
+          entityId: data.id,
+          entityName: getEntityName(tableParam, created.data),
+          userId: req.user?.id || null,
+          oldValues: null,
+          newValues: created.data,
+          source: 'browser',
+        });
       }
       res.status(201).json(created.data);
       return;
@@ -734,15 +660,16 @@ router.post('/:table', (req: AuthRequest, res: Response) => {
     const created = queryOne<any>(`SELECT * FROM ${tableParam} WHERE id = ?`, [data.id]);
     // Log activity for single insert
     if (created.data) {
-      logActivity(
-        tableParam,
-        'created',
-        data.id,
-        getEntityName(tableParam, created.data),
-        req.user?.id || null,
-        null,
-        created.data
-      );
+      logActivity({
+        table: tableParam,
+        action: 'created',
+        entityId: data.id,
+        entityName: getEntityName(tableParam, created.data),
+        userId: req.user?.id || null,
+        oldValues: null,
+        newValues: created.data,
+        source: 'browser',
+      });
     }
     res.status(201).json(created.data);
   }, { write: true });
@@ -781,15 +708,16 @@ router.patch('/:table/:id', (req: AuthRequest, res: Response) => {
     const updated = queryOne<any>(`SELECT * FROM ${tableParam} WHERE id = ?`, [idParam]);
     // Log activity for update
     if (updated.data) {
-      logActivity(
-        tableParam,
-        'updated',
-        idParam,
-        getEntityName(tableParam, updated.data),
-        req.user?.id || null,
-        oldRecord.data || null,
-        updated.data
-      );
+      logActivity({
+        table: tableParam,
+        action: 'updated',
+        entityId: idParam,
+        entityName: getEntityName(tableParam, updated.data),
+        userId: req.user?.id || null,
+        oldValues: oldRecord.data || null,
+        newValues: updated.data,
+        source: 'browser',
+      });
     }
     res.json(updated.data);
   }, { write: true });
@@ -834,15 +762,16 @@ router.patch('/:table', (req: AuthRequest, res: Response) => {
     const updated = queryAll<any>(`SELECT * FROM ${tableParam} ${clause}`, params);
     // Log activity for each updated record
     (updated.data || []).forEach(record => {
-      logActivity(
-        tableParam,
-        'updated',
-        record.id,
-        getEntityName(tableParam, record),
-        req.user?.id || null,
-        oldRecordsMap.get(record.id) || null,
-        record
-      );
+      logActivity({
+        table: tableParam,
+        action: 'updated',
+        entityId: record.id,
+        entityName: getEntityName(tableParam, record),
+        userId: req.user?.id || null,
+        oldValues: oldRecordsMap.get(record.id) || null,
+        newValues: record,
+        source: 'browser',
+      });
     });
     res.json(updated.data || []);
   }, { write: true });
@@ -869,15 +798,16 @@ router.delete('/:table/:id', (req: AuthRequest, res: Response) => {
 
     // Log activity for delete
     if (oldRecord.data) {
-      logActivity(
-        tableParam,
-        'deleted',
-        idParam,
-        getEntityName(tableParam, oldRecord.data),
-        req.user?.id || null,
-        oldRecord.data,
-        null
-      );
+      logActivity({
+        table: tableParam,
+        action: 'deleted',
+        entityId: idParam,
+        entityName: getEntityName(tableParam, oldRecord.data),
+        userId: req.user?.id || null,
+        oldValues: oldRecord.data,
+        newValues: null,
+        source: 'browser',
+      });
     }
 
     res.status(204).send();

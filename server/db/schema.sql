@@ -844,6 +844,8 @@ CREATE TABLE IF NOT EXISTS activity_log (
   old_values TEXT,
   new_values TEXT,
   user_id TEXT,
+  source TEXT DEFAULT 'browser',
+  api_key_id TEXT REFERENCES api_keys(id),
   created_at TEXT DEFAULT (datetime('now'))
 );
 

@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, execute } from '../db/database.js';
 import { getUserPermission } from '../middleware/auth.js';
+import { logActivity, getEntityName, loggedTables } from '../utils/activityLogger.js';
 
 const router = Router();
 
@@ -161,24 +162,75 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       execute(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values);
       result = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [payload.id]).data;
       statusCode = 201;
+      
+      // Log activity for API create
+      if (result && loggedTables.has(table)) {
+        logActivity({
+          table,
+          action: 'created',
+          entityId: payload.id,
+          entityName: getEntityName(table, result),
+          userId,
+          oldValues: null,
+          newValues: result,
+          source: 'api',
+          apiKeyId,
+        });
+      }
     } else if (req.method === 'PUT' || req.method === 'PATCH') {
       if (!idParam) {
         res.status(400).json({ error: 'ID is required for update' });
         return;
       }
+      // Fetch old record before update for activity logging
+      const oldRecord = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [idParam]).data;
+      
       const payload = req.body || {};
       const sets = Object.keys(payload).map(key => `${key} = ?`).join(', ');
       const values = [...Object.values(payload), idParam];
       execute(`UPDATE ${table} SET ${sets} WHERE id = ?`, values);
       result = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [idParam]).data;
+      
+      // Log activity for API update
+      if (result && loggedTables.has(table)) {
+        logActivity({
+          table,
+          action: 'updated',
+          entityId: idParam,
+          entityName: getEntityName(table, result),
+          userId,
+          oldValues: oldRecord,
+          newValues: result,
+          source: 'api',
+          apiKeyId,
+        });
+      }
     } else if (req.method === 'DELETE') {
       if (!idParam) {
         res.status(400).json({ error: 'ID is required for delete' });
         return;
       }
+      // Fetch record before delete for activity logging
+      const oldRecord = queryOne<any>(`SELECT * FROM ${table} WHERE id = ?`, [idParam]).data;
+      
       execute(`DELETE FROM ${table} WHERE id = ?`, [idParam]);
       result = null;
       statusCode = 204;
+      
+      // Log activity for API delete
+      if (oldRecord && loggedTables.has(table)) {
+        logActivity({
+          table,
+          action: 'deleted',
+          entityId: idParam,
+          entityName: getEntityName(table, oldRecord),
+          userId,
+          oldValues: oldRecord,
+          newValues: null,
+          source: 'api',
+          apiKeyId,
+        });
+      }
     } else {
       res.status(405).json({ error: 'Method not allowed' });
       return;

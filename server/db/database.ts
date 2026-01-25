@@ -28,12 +28,35 @@ export function initializeDatabase(): void {
   const schema = readFileSync(schemaPath, 'utf-8');
   database.exec(schema);
   
+  // Run migrations for existing databases
+  runMigrations(database);
+  
   // Read and execute seed data
   const seedPath = join(__dirname, 'seed.sql');
   const seed = readFileSync(seedPath, 'utf-8');
   database.exec(seed);
   
   console.log('Database initialized successfully');
+}
+
+function runMigrations(database: Database.Database): void {
+  // Migration: Add source and api_key_id columns to activity_log
+  try {
+    const columns = database.pragma('table_info(activity_log)') as Array<{ name: string }>;
+    const columnNames = columns.map(c => c.name);
+    
+    if (!columnNames.includes('source')) {
+      database.exec("ALTER TABLE activity_log ADD COLUMN source TEXT DEFAULT 'browser'");
+      console.log('Migration: Added source column to activity_log');
+    }
+    
+    if (!columnNames.includes('api_key_id')) {
+      database.exec("ALTER TABLE activity_log ADD COLUMN api_key_id TEXT REFERENCES api_keys(id)");
+      console.log('Migration: Added api_key_id column to activity_log');
+    }
+  } catch (error) {
+    console.error('Migration error:', error);
+  }
 }
 
 export function closeDatabase(): void {

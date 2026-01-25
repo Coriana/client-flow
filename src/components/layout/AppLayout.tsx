@@ -19,7 +19,8 @@ import {
   Building2,
   Key,
   HelpCircle,
-  History
+  History,
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +28,7 @@ import { usePermissions } from '@/contexts/PermissionContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import MyProfileDialog from '@/components/MyProfileDialog';
 
 interface NavItem {
   name: string;
@@ -59,6 +61,7 @@ const navigation: NavItem[] = [
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { canRead, role, loading: permissionsLoading } = usePermissions();
@@ -142,15 +145,26 @@ export default function AppLayout() {
               )}
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full"
-            onClick={signOut}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign out
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={() => setProfileOpen(true)}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign out
+            </Button>
+          </div>
         </div>
       </aside>
 
@@ -176,6 +190,8 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <MyProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
