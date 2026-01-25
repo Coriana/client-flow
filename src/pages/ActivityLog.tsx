@@ -8,7 +8,8 @@ import { format, formatDistanceToNow, startOfDay, subDays, isToday, isYesterday 
 import { 
   Users, Briefcase, FileText, DollarSign, AlertCircle, 
   Package, Box, Clock, Receipt, Building2, History,
-  Plus, Pencil, Trash2, ShieldAlert, Globe, Monitor, Key
+  Plus, Pencil, Trash2, ShieldAlert, Globe, Monitor, Key,
+  BookOpen, Settings, FileSpreadsheet
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ActivityDetails from "@/components/ActivityDetails";
@@ -36,13 +37,18 @@ const ENTITY_TYPES = [
   { value: "clients", label: "Clients" },
   { value: "jobs", label: "Jobs" },
   { value: "invoices", label: "Invoices" },
+  { value: "estimates", label: "Estimates" },
   { value: "payments", label: "Payments" },
   { value: "issues", label: "Issues" },
   { value: "assets", label: "Assets" },
   { value: "items", label: "Inventory" },
   { value: "timesheets", label: "Timesheets" },
   { value: "expenses", label: "Expenses" },
+  { value: "purchases", label: "Purchases" },
   { value: "vendors", label: "Vendors" },
+  { value: "kb_articles", label: "Knowledge Base" },
+  { value: "profiles", label: "Profiles" },
+  { value: "company_settings", label: "Settings" },
 ];
 
 const ACTIONS = [
@@ -166,13 +172,19 @@ export default function ActivityLog() {
       clients: <Users className="h-4 w-4" />,
       jobs: <Briefcase className="h-4 w-4" />,
       invoices: <FileText className="h-4 w-4" />,
+      estimates: <FileSpreadsheet className="h-4 w-4" />,
       payments: <DollarSign className="h-4 w-4" />,
       issues: <AlertCircle className="h-4 w-4" />,
       assets: <Package className="h-4 w-4" />,
       items: <Box className="h-4 w-4" />,
       timesheets: <Clock className="h-4 w-4" />,
       expenses: <Receipt className="h-4 w-4" />,
+      purchases: <Receipt className="h-4 w-4" />,
       vendors: <Building2 className="h-4 w-4" />,
+      kb_articles: <BookOpen className="h-4 w-4" />,
+      kb_attachments: <BookOpen className="h-4 w-4" />,
+      profiles: <Users className="h-4 w-4" />,
+      company_settings: <Settings className="h-4 w-4" />,
     };
     return icons[entityType] || <History className="h-4 w-4" />;
   };
@@ -205,8 +217,36 @@ export default function ActivityLog() {
       assets: `/assets/${entityId}`,
       items: `/inventory/${entityId}`,
       vendors: `/vendors/${entityId}`,
+      kb_articles: `/knowledge-base/${entityId}`,
     };
     return routes[entityType] || null;
+  };
+
+  // Get a brief summary of what changed for updates
+  const getChangeSummary = (entry: ActivityLogEntry): string | null => {
+    if (entry.action !== 'updated') return null;
+    
+    const oldObj = (typeof entry.old_values === 'object' && entry.old_values !== null) 
+      ? entry.old_values as Record<string, unknown> : null;
+    const newObj = (typeof entry.new_values === 'object' && entry.new_values !== null) 
+      ? entry.new_values as Record<string, unknown> : null;
+    
+    if (!oldObj || !newObj) return null;
+    
+    const excludedFields = ['id', 'user_id', 'created_at', 'updated_at', 'created_by', 'updated_by'];
+    const changedFields: string[] = [];
+    
+    const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+    allKeys.forEach(key => {
+      if (excludedFields.includes(key)) return;
+      if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
+        changedFields.push(key.replace(/_/g, ' '));
+      }
+    });
+    
+    if (changedFields.length === 0) return null;
+    if (changedFields.length <= 3) return changedFields.join(', ');
+    return `${changedFields.slice(0, 2).join(', ')} +${changedFields.length - 2} more`;
   };
 
   // Group entries by date
@@ -315,6 +355,7 @@ export default function ActivityLog() {
                       {dayEntries.map((entry) => {
                         const link = getEntityLink(entry.entity_type, entry.entity_id);
                         const isExpanded = expandedId === entry.id;
+                        const changeSummary = getChangeSummary(entry);
                         
                         return (
                           <div key={entry.id} className="border rounded-lg overflow-hidden">
@@ -350,6 +391,14 @@ export default function ActivityLog() {
                                           {entry.entity_name}
                                         </span>
                                       )}
+                                    </>
+                                  )}
+                                  {changeSummary && (
+                                    <>
+                                      <span className="text-muted-foreground">·</span>
+                                      <span className="text-xs text-muted-foreground italic">
+                                        changed: {changeSummary}
+                                      </span>
                                     </>
                                   )}
                                 </div>

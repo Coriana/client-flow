@@ -79,18 +79,20 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
     receipt_url: null as string | null,
   });
   
-  const [allocations, setAllocations] = useState<Allocation[]>([
-    { id: uuid(), type: 'general', amount: 0 }
-  ]);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [allocationsLoaded, setAllocationsLoaded] = useState(false);
 
   useEffect(() => {
     if (open) {
+      // Reset state when dialog opens
+      setAllocationsLoaded(false);
+      setAllocations([]);
       fetchData();
       if (purchase) {
         loadPurchaseData();
       }
     }
-  }, [open, purchase]);
+  }, [open, purchase?.id]);
 
   async function fetchData() {
     const [jobsRes, itemsRes, vendorsRes, settingsRes] = await Promise.all([
@@ -148,6 +150,7 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
         amount: purchase.total 
       }]);
     }
+    setAllocationsLoaded(true);
   }
 
   async function handleReceiptUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -198,6 +201,11 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
     
     if (!editData.description || editData.amount <= 0) {
       toast({ title: 'Error', description: 'Description and amount are required', variant: 'destructive' });
+      return;
+    }
+    
+    if (!allocationsLoaded || allocations.length === 0) {
+      toast({ title: 'Error', description: 'Please wait for allocations to load', variant: 'destructive' });
       return;
     }
     
@@ -358,12 +366,12 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
                     const exGstAmount = inputValue / gstMultiplier;
                     const gstAmount = inputValue - exGstAmount;
                     setEditData({ ...editData, amount: exGstAmount, tax_amount: gstAmount });
-                    if (allocations.length === 1) {
+                    if (allocationsLoaded && allocations.length === 1) {
                       updateAllocation(allocations[0].id, { amount: inputValue });
                     }
                   } else {
                     setEditData({ ...editData, amount: inputValue });
-                    if (allocations.length === 1) {
+                    if (allocationsLoaded && allocations.length === 1) {
                       updateAllocation(allocations[0].id, { amount: inputValue + (editData.tax_amount || 0) });
                     }
                   }
@@ -387,7 +395,7 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
                           const newExGst = currentTotal / gstMultiplier;
                           const newGst = currentTotal - newExGst;
                           setEditData({ ...editData, amount: newExGst, tax_amount: newGst });
-                          if (allocations.length === 1) {
+                          if (allocationsLoaded && allocations.length === 1) {
                             updateAllocation(allocations[0].id, { amount: currentTotal });
                           }
                         }
@@ -405,7 +413,7 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
                 onChange={(e) => {
                   const tax = parseFloat(e.target.value) || 0;
                   setEditData({ ...editData, tax_amount: tax });
-                  if (allocations.length === 1) {
+                  if (allocationsLoaded && allocations.length === 1) {
                     updateAllocation(allocations[0].id, { amount: editData.amount + tax });
                   }
                 }}

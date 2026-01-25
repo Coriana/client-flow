@@ -17,6 +17,10 @@ export const loggedTables = new Set([
   'timesheets',
   'profiles',
   'bank_accounts',
+  'kb_articles',
+  'kb_attachments',
+  'estimates',
+  'company_settings',
 ]);
 
 // Map table to the column that should be used as entity_name
@@ -35,6 +39,10 @@ export const entityNameColumn: Record<string, string> = {
   timesheets: 'description',
   profiles: 'full_name',
   bank_accounts: 'name',
+  kb_articles: 'title',
+  kb_attachments: 'file_name',
+  estimates: 'estimate_number',
+  company_settings: 'company_name',
 };
 
 export type ActivitySource = 'browser' | 'api' | 'system';
