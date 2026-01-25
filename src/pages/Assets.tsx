@@ -33,7 +33,7 @@ export default function Assets() {
     async function fetchAssets() {
       const { data, error } = await supabase
         .from('assets')
-        .select('*, clients:clients!assets_assigned_client_id_fkey(name)')
+        .select('*, clients:assigned_client_id(name)')
         .order('name');
       
       if (error) {
