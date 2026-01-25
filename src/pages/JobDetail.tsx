@@ -118,7 +118,7 @@ export default function JobDetail() {
     billing_day: 1,
     rental_rate: '',
     invoice_lead_days: 7,
-    billing_in_advance: false,
+    billing_in_advance: true,
   });
 
   useEffect(() => {
@@ -440,7 +440,7 @@ export default function JobDetail() {
         billing_day: 1,
         rental_rate: '',
         invoice_lead_days: 7,
-        billing_in_advance: false,
+        billing_in_advance: true,
       });
       setShowAssetForm(false);
       setAssetConflictWarning(null);

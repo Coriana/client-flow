@@ -64,11 +64,21 @@ function runMigrations(database: Database.Database): void {
     const jobAssetsColumnNames = jobAssetsColumns.map(c => c.name);
     
     if (!jobAssetsColumnNames.includes('billing_in_advance')) {
-      database.exec("ALTER TABLE job_assets ADD COLUMN billing_in_advance INTEGER DEFAULT 0");
+      database.exec("ALTER TABLE job_assets ADD COLUMN billing_in_advance INTEGER DEFAULT 1");
       console.log('Migration: Added billing_in_advance column to job_assets');
     }
   } catch (error) {
     console.error('Migration error (job_assets):', error);
+  }
+
+  // Migration: Update existing job_assets to bill in advance (one-time fix)
+  try {
+    const result = database.prepare("UPDATE job_assets SET billing_in_advance = 1 WHERE billing_in_advance = 0 OR billing_in_advance IS NULL").run();
+    if (result.changes > 0) {
+      console.log(`Migration: Updated ${result.changes} job_assets to billing_in_advance = 1`);
+    }
+  } catch (error) {
+    console.error('Migration error (job_assets billing_in_advance update):', error);
   }
 
   // Migration: Add default_billing_in_advance to company_settings
@@ -77,11 +87,21 @@ function runMigrations(database: Database.Database): void {
     const settingsColumnNames = settingsColumns.map(c => c.name);
     
     if (!settingsColumnNames.includes('default_billing_in_advance')) {
-      database.exec("ALTER TABLE company_settings ADD COLUMN default_billing_in_advance INTEGER DEFAULT 0");
+      database.exec("ALTER TABLE company_settings ADD COLUMN default_billing_in_advance INTEGER DEFAULT 1");
       console.log('Migration: Added default_billing_in_advance column to company_settings');
     }
   } catch (error) {
     console.error('Migration error (company_settings):', error);
+  }
+
+  // Migration: Update existing company_settings to bill in advance (one-time fix)
+  try {
+    const result = database.prepare("UPDATE company_settings SET default_billing_in_advance = 1 WHERE default_billing_in_advance = 0 OR default_billing_in_advance IS NULL").run();
+    if (result.changes > 0) {
+      console.log(`Migration: Updated company_settings to default_billing_in_advance = 1`);
+    }
+  } catch (error) {
+    console.error('Migration error (company_settings default_billing_in_advance update):', error);
   }
 
   // Migration: Add abn to trading_names
