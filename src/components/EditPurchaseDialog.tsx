@@ -81,16 +81,29 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
   
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [allocationsLoaded, setAllocationsLoaded] = useState(false);
+  const loadingRef = useRef(false);
+  const lastPurchaseIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (open) {
+    if (open && purchase?.id) {
+      // Prevent duplicate loads for same purchase
+      if (loadingRef.current || lastPurchaseIdRef.current === purchase.id) return;
+      loadingRef.current = true;
+      lastPurchaseIdRef.current = purchase.id;
+      
       // Reset state when dialog opens
       setAllocationsLoaded(false);
       setAllocations([]);
       fetchData();
-      if (purchase) {
-        loadPurchaseData();
-      }
+      loadPurchaseData().finally(() => {
+        loadingRef.current = false;
+      });
+    } else if (!open) {
+      // Reset all flags when dialog closes
+      loadingRef.current = false;
+      lastPurchaseIdRef.current = null;
+      setAllocationsLoaded(false);
+      setAllocations([]);
     }
   }, [open, purchase?.id]);
 
