@@ -5,6 +5,7 @@ import { queryAll, queryOne, execute } from '../db/database.js';
 import { getUserPermission } from '../middleware/auth.js';
 import { logActivity, getEntityName, loggedTables } from '../utils/activityLogger.js';
 import { areValidColumns } from '../db/columns.js';
+import { allocateInvoiceNumber, allocateJobNumber } from '../utils/numbering.js';
 
 const router = Router();
 
@@ -158,19 +159,15 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       const payload = req.body || {};
       if (!payload.id) payload.id = uuidv4();
       
-      // Auto-generate required fields for specific tables
+      // Auto-generate required fields for specific tables. Numbers come from
+      // the shared, transaction-guarded counters in company_settings so they
+      // never collide or get reused after a delete (see server/utils/numbering.ts).
       if (table === 'jobs' && !payload.job_number) {
-        const year = new Date().getFullYear();
-        const countResult = queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM jobs`, []);
-        const count = countResult.data?.cnt || 0;
-        payload.job_number = `JOB-${year}-${String(count + 1).padStart(4, '0')}`;
+        payload.job_number = allocateJobNumber();
       }
-      
+
       if (table === 'invoices' && !payload.invoice_number) {
-        const year = new Date().getFullYear();
-        const countResult = queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM invoices`, []);
-        const count = countResult.data?.cnt || 0;
-        payload.invoice_number = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+        payload.invoice_number = allocateInvoiceNumber();
       }
       
       const columns = Object.keys(payload);

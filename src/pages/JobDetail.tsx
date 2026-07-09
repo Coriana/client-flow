@@ -704,16 +704,13 @@ export default function JobDetail() {
       return;
     }
 
-    // Generate invoice number
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('id, invoice_prefix, invoice_next_number')
-      .limit(1)
-      .maybeSingle();
-
-    const prefix = settings?.invoice_prefix || 'INV';
-    const nextNum = settings?.invoice_next_number || 1;
-    const invoiceNumber = `${prefix}-${String(nextNum).padStart(5, '0')}`;
+    // Allocate invoice number atomically so it's guaranteed unique
+    const { data: numData, error: numErr } = await supabase.functions.invoke('allocate-invoice-number');
+    if (numErr || !numData?.invoice_number) {
+      toast({ title: 'Error', description: numErr?.message || 'Failed to allocate invoice number', variant: 'destructive' });
+      return;
+    }
+    const invoiceNumber = numData.invoice_number;
 
     // Get unbilled time and expenses (billable AND not already on any invoice)
     const { data: existingLines } = await supabase
@@ -789,13 +786,9 @@ export default function JobDetail() {
       await supabase.from('invoice_lines').insert(allLines);
     }
 
-    // Update company settings
-    if (settings) {
-      await supabase
-        .from('company_settings')
-        .update({ invoice_next_number: nextNum + 1 })
-        .eq('id', settings.id);
-    }
+    // Note: the invoice number counter is now advanced atomically by the
+    // allocate-invoice-number function at allocation time above, so there is
+    // no separate client-side counter update here anymore.
 
     toast({ title: 'Success', description: 'Invoice created' });
     navigate(`/invoices/${invoice.id}`);
