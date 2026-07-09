@@ -1,14 +1,32 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
-import { join, extname, dirname } from 'path';
-import { existsSync, mkdirSync, unlinkSync, readFileSync, writeFileSync } from 'fs';
+import { join, extname, dirname, resolve, sep } from 'path';
+import { existsSync, mkdirSync, unlinkSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+
+/** Express route params can be typed string | string[]; take the first value. */
+function asParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] : (value ?? '');
+}
 
 const router = Router();
 
 // Configure storage
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), 'server', 'uploads');
+
+/**
+ * Resolve a caller-supplied relative path inside a bucket, guaranteeing the
+ * result cannot escape the bucket directory. Returns null if it would.
+ */
+function resolveWithinBucket(bucket: string, relPath: string): string | null {
+  const bucketRoot = resolve(UPLOAD_DIR, bucket);
+  const full = resolve(bucketRoot, relPath);
+  if (full !== bucketRoot && !full.startsWith(bucketRoot + sep)) {
+    return null;
+  }
+  return full;
+}
 
 // Ensure upload directories exist
 const buckets = ['images', 'documents', 'kb-files', 'branding'];
@@ -25,7 +43,7 @@ const memoryStorage = multer.memoryStorage();
 // Also keep disk storage for simple uploads
 const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const bucket = req.params.bucket;
+    const bucket = asParam(req.params.bucket);
     if (!buckets.includes(bucket)) {
       cb(new Error('Invalid bucket'), '');
       return;
@@ -66,8 +84,8 @@ const upload = multer({
 
 // Upload file to bucket
 router.post('/:bucket', authMiddleware, upload.single('file'), (req: AuthRequest, res: Response) => {
-  const { bucket } = req.params;
-  
+  const bucket = asParam(req.params.bucket);
+
   if (!buckets.includes(bucket)) {
     res.status(400).json({ error: 'Invalid bucket' });
     return;
@@ -84,14 +102,20 @@ router.post('/:bucket', authMiddleware, upload.single('file'), (req: AuthRequest
     filePath = `${uuidv4()}${extname(req.file.originalname)}`;
   }
 
+  // Ensure the resolved write location stays inside the bucket directory
+  const fullPath = resolveWithinBucket(bucket, filePath);
+  if (!fullPath) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
+
   // Ensure the directory exists
-  const fullDir = join(UPLOAD_DIR, bucket, dirname(filePath));
+  const fullDir = dirname(fullPath);
   if (!existsSync(fullDir)) {
     mkdirSync(fullDir, { recursive: true });
   }
 
   // Write the file
-  const fullPath = join(UPLOAD_DIR, bucket, filePath);
   writeFileSync(fullPath, req.file.buffer);
 
   const fileUrl = `/api/storage/${bucket}/${encodeURIComponent(filePath)}`;
@@ -108,17 +132,20 @@ router.post('/:bucket', authMiddleware, upload.single('file'), (req: AuthRequest
 
 // Get file from bucket (simple filename)
 router.get('/:bucket/:filename', (req, res) => {
-  const { bucket, filename } = req.params;
-  
+  const bucket = asParam(req.params.bucket);
+  const filename = asParam(req.params.filename);
+
   if (!buckets.includes(bucket)) {
     res.status(400).json({ error: 'Invalid bucket' });
     return;
   }
 
-  // Decode the filename in case it was URL encoded
-  const decodedFilename = decodeURIComponent(filename);
-  const filePath = join(UPLOAD_DIR, bucket, decodedFilename);
-  
+  const filePath = resolveWithinBucket(bucket, filename);
+  if (!filePath) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
+
   if (!existsSync(filePath)) {
     res.status(404).json({ error: 'File not found' });
     return;
@@ -129,17 +156,20 @@ router.get('/:bucket/:filename', (req, res) => {
 
 // Delete file from bucket
 router.delete('/:bucket/:filename', authMiddleware, (req: AuthRequest, res: Response) => {
-  const { bucket, filename } = req.params;
-  
+  const bucket = asParam(req.params.bucket);
+  const filename = asParam(req.params.filename);
+
   if (!buckets.includes(bucket)) {
     res.status(400).json({ error: 'Invalid bucket' });
     return;
   }
 
-  // Decode the filename in case it was URL encoded
-  const decodedFilename = decodeURIComponent(filename);
-  const filePath = join(UPLOAD_DIR, bucket, decodedFilename);
-  
+  const filePath = resolveWithinBucket(bucket, filename);
+  if (!filePath) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
+
   if (!existsSync(filePath)) {
     // File doesn't exist, but that's fine for delete
     res.status(204).send();
@@ -156,14 +186,13 @@ router.delete('/:bucket/:filename', authMiddleware, (req: AuthRequest, res: Resp
 
 // List files in bucket
 router.get('/:bucket', authMiddleware, (req: AuthRequest, res: Response) => {
-  const { bucket } = req.params;
-  
+  const bucket = asParam(req.params.bucket);
+
   if (!buckets.includes(bucket)) {
     res.status(400).json({ error: 'Invalid bucket' });
     return;
   }
 
-  const { readdirSync, statSync } = require('fs');
   const bucketPath = join(UPLOAD_DIR, bucket);
   
   try {

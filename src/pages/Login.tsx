@@ -78,9 +78,9 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
             <p className="text-sm text-muted-foreground text-center">
-              Don't have an account?{' '}
+              Have an invite?{' '}
               <Link to="/signup" className="text-primary hover:underline">
-                Sign up
+                Set up your account
               </Link>
             </p>
           </CardFooter>

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, execute } from '../db/database.js';
 import { authMiddleware, optionalAuthMiddleware, AuthRequest, requirePermission } from '../middleware/auth.js';
 import { logActivity, getEntityName } from '../utils/activityLogger.js';
+import { getTableColumns, assertValidColumns, areValidColumns, InvalidColumnError } from '../db/columns.js';
 import type { ParsedQs } from 'qs';
 
 const router = Router();
@@ -217,6 +218,23 @@ function normalizePayload(table: string, payload: Record<string, any>) {
   return normalized;
 }
 
+/**
+ * Validates that every key in `columns` is a real column of `table`.
+ * On failure, writes a 400 response and returns false so the caller can bail out.
+ */
+function validateColumns(res: Response, table: string, columns: string[]): boolean {
+  try {
+    assertValidColumns(table, columns);
+    return true;
+  } catch (err) {
+    if (err instanceof InvalidColumnError) {
+      res.status(400).json({ error: 'Invalid column name' });
+      return false;
+    }
+    throw err;
+  }
+}
+
 function buildWhereClause(query: Record<string, any>, tableName: string): { clause: string; params: any[] } {
   const conditions: string[] = [];
   const params: any[] = [];
@@ -259,6 +277,9 @@ function buildWhereClause(query: Record<string, any>, tableName: string): { clau
   };
 
   const buildCondition = (field: string, operator: string, value: string, negated: boolean) => {
+    if (!getTableColumns(tableName).has(field)) {
+      throw new InvalidColumnError(`Invalid column: ${field}`);
+    }
     const column = `${tableName}.${field}`;
 
     switch (operator) {
@@ -338,6 +359,9 @@ function buildWhereClause(query: Record<string, any>, tableName: string): { clau
       continue;
     }
 
+    if (!getTableColumns(tableName).has(key)) {
+      throw new InvalidColumnError(`Invalid column: ${key}`);
+    }
     conditions.push(`${tableName}.${key} = ?`);
     params.push(value);
   }
@@ -473,7 +497,23 @@ router.get('/:table', (req: AuthRequest, res: Response) => {
       fields.length = 0;
       requiredFields.forEach(field => fields.push(field));
     }
-    const { clause, params } = buildWhereClause(req.query as Record<string, any>, tableParam);
+
+    if (!fields.includes('*') && !areValidColumns(tableParam, fields)) {
+      res.status(400).json({ error: 'Invalid column name' });
+      return;
+    }
+
+    let clause: string;
+    let params: any[];
+    try {
+      ({ clause, params } = buildWhereClause(req.query as Record<string, any>, tableParam));
+    } catch (err) {
+      if (err instanceof InvalidColumnError) {
+        res.status(400).json({ error: 'Invalid column name' });
+        return;
+      }
+      throw err;
+    }
 
     let orderClause = '';
     const orderValue = normalizeQueryValue(order);
@@ -482,6 +522,7 @@ router.get('/:table', (req: AuthRequest, res: Response) => {
         .split(',')
         .map(part => part.trim())
         .filter(Boolean)
+        .filter(part => getTableColumns(tableParam).has(part.split('.')[0]))
         .map(part => {
           const [field, dir] = part.split('.');
           return `${tableParam}.${field} ${dir === 'desc' ? 'DESC' : 'ASC'}`;
@@ -533,6 +574,12 @@ router.get('/:table/:id', (req: AuthRequest, res: Response) => {
   withAuth(req, res, tableParam, async () => {
     const selectValue = normalizeQueryValue(req.query.select as any) || '*';
     const { fields, relations } = parseSelect(selectValue);
+
+    if (!fields.includes('*') && !areValidColumns(tableParam, fields)) {
+      res.status(400).json({ error: 'Invalid column name' });
+      return;
+    }
+
     const fieldList = fields.includes('*') ? '*' : fields.join(', ');
     const result = queryOne<any>(`SELECT ${fieldList} FROM ${tableParam} WHERE id = ?`, [idParam]);
 
@@ -569,6 +616,7 @@ router.post('/:table', (req: AuthRequest, res: Response) => {
         }
 
         const columns = Object.keys(data);
+        if (!validateColumns(res, tableParam, columns)) return;
         const placeholders = columns.map(() => '?').join(', ');
         const values = Object.values(data);
 
@@ -614,6 +662,7 @@ router.post('/:table', (req: AuthRequest, res: Response) => {
       }
 
       const columns = Object.keys(data);
+      if (!validateColumns(res, tableParam, columns)) return;
       const placeholders = columns.map(() => '?').join(', ');
       const values = Object.values(data);
       const updateClauses = columns.filter(col => col !== 'id').map(col => `${col} = excluded.${col}`).join(', ');
@@ -646,6 +695,7 @@ router.post('/:table', (req: AuthRequest, res: Response) => {
     }
 
     const columns = Object.keys(data);
+    if (!validateColumns(res, tableParam, columns)) return;
     const placeholders = columns.map(() => '?').join(', ');
     const values = Object.values(data);
 
@@ -694,6 +744,8 @@ router.patch('/:table/:id', (req: AuthRequest, res: Response) => {
       data.updated_at = new Date().toISOString();
     }
 
+    if (!validateColumns(res, tableParam, Object.keys(data))) return;
+
     const sets = Object.keys(data).map(key => `${key} = ?`).join(', ');
     const values = [...Object.values(data), idParam];
 
@@ -738,7 +790,19 @@ router.patch('/:table', (req: AuthRequest, res: Response) => {
       data.updated_at = new Date().toISOString();
     }
 
-    const { clause, params } = buildWhereClause(req.query as Record<string, any>, tableParam);
+    if (!validateColumns(res, tableParam, Object.keys(data))) return;
+
+    let clause: string;
+    let params: any[];
+    try {
+      ({ clause, params } = buildWhereClause(req.query as Record<string, any>, tableParam));
+    } catch (err) {
+      if (err instanceof InvalidColumnError) {
+        res.status(400).json({ error: 'Invalid column name' });
+        return;
+      }
+      throw err;
+    }
     if (!clause) {
       res.status(400).json({ error: 'No filters specified for update' });
       return;

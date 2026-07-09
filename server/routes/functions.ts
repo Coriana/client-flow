@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, execute } from '../db/database.js';
 import { authMiddleware, AuthRequest, requirePermission } from '../middleware/auth.js';
+import { allocateInvoiceNumber, allocateJobNumber } from '../utils/numbering.js';
 
 const router = Router();
 
@@ -326,10 +327,8 @@ router.post('/generate-job-invoices', authMiddleware, async (req: AuthRequest, r
     }
 
     const settings = queryOne<any>(
-      'SELECT id, invoice_prefix, invoice_next_number, default_tax_rate, default_tax_rate_id, default_payment_terms FROM company_settings LIMIT 1'
+      'SELECT id, default_tax_rate, default_tax_rate_id, default_payment_terms FROM company_settings LIMIT 1'
     ).data;
-    const prefix = settings?.invoice_prefix || 'INV';
-    let nextNum = settings?.invoice_next_number || 1;
     const defaultTerms = settings?.default_payment_terms || 30;
     const defaultTax = settings?.default_tax_rate_id
       ? queryOne<any>('SELECT id, name, rate FROM tax_rates WHERE id = ?', [settings.default_tax_rate_id]).data
@@ -366,7 +365,7 @@ router.post('/generate-job-invoices', authMiddleware, async (req: AuthRequest, r
       const client = queryOne<any>('SELECT * FROM clients WHERE id = ?', [job.client_id]).data;
       if (!client) continue;
 
-      const invoiceNumber = `${prefix}-${String(nextNum).padStart(5, '0')}`;
+      const invoiceNumber = allocateInvoiceNumber();
       const paymentTerms = client.payment_terms || defaultTerms;
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + paymentTerms);
@@ -533,11 +532,6 @@ router.post('/generate-job-invoices', authMiddleware, async (req: AuthRequest, r
       });
 
       invoicesCreated.push(invoiceNumber);
-      nextNum++;
-    }
-
-    if (invoicesCreated.length > 0 && settings) {
-      execute('UPDATE company_settings SET invoice_next_number = ? WHERE id = ?', [nextNum, settings.id]);
     }
 
     res.json({
@@ -545,6 +539,22 @@ router.post('/generate-job-invoices', authMiddleware, async (req: AuthRequest, r
       count: invoicesCreated.length,
       invoices: invoicesCreated,
     });
+  });
+});
+
+router.post('/allocate-invoice-number', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const requireWrite = requirePermission('invoices', 'write');
+  await requireWrite(req, res, async () => {
+    const invoice_number = allocateInvoiceNumber();
+    res.json({ invoice_number });
+  });
+});
+
+router.post('/allocate-job-number', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const requireWrite = requirePermission('jobs', 'write');
+  await requireWrite(req, res, async () => {
+    const job_number = allocateJobNumber();
+    res.json({ job_number });
   });
 });
 

@@ -43,8 +43,13 @@ EXPOSE 3001
 ENV NODE_ENV=production
 ENV API_PORT=3001
 ENV DATABASE_PATH=/app/data/app.db
-ENV JWT_SECRET=change-me-in-production
-ENV CORS_ORIGIN=*
+# JWT_SECRET is REQUIRED at runtime - the operator must supply a strong,
+# unique value (e.g. `docker run -e JWT_SECRET=...`). There is no baked-in
+# default: the server refuses to start in production without one (see
+# server/index.ts). Do not set a placeholder value here.
+# CORS_ORIGIN must be supplied by the operator (comma-separated list of
+# trusted origins). It intentionally has no default here - defaulting to
+# "*" would allow requests from any origin.
 
 # Start the server using tsx
 CMD ["npx", "tsx", "server/index.ts"]

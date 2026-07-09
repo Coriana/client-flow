@@ -30,9 +30,20 @@ export function verifyToken(token: string): AuthUser | null {
   }
 }
 
+// Re-loads the user from the DB and confirms the account still exists and is active.
+// Single indexed lookup by primary key, so it's cheap to run on every request.
+function loadActiveUser(userId: string): boolean {
+  const result = queryOne<{ id: string; is_active: number }>(
+    'SELECT id, is_active FROM profiles WHERE id = ?',
+    [userId]
+  );
+
+  return !result.error && !!result.data && !!result.data.is_active;
+}
+
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: 'No token provided' });
     return;
@@ -46,21 +57,26 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     return;
   }
 
+  if (!loadActiveUser(user.id)) {
+    res.status(401).json({ error: 'Account is disabled' });
+    return;
+  }
+
   req.user = user;
   next();
 }
 
 export function optionalAuthMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  
+
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     const user = verifyToken(token);
-    if (user) {
+    if (user && loadActiveUser(user.id)) {
       req.user = user;
     }
   }
-  
+
   next();
 }
 

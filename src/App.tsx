@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,41 +9,45 @@ import { PermissionProvider } from "@/contexts/PermissionContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
+// Login is the common entry point, so keep it eager to avoid a load flash.
 import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Clients from "./pages/Clients";
-import ClientDetail from "./pages/ClientDetail";
-import Jobs from "./pages/Jobs";
-import JobDetail from "./pages/JobDetail";
-import Invoices from "./pages/Invoices";
-import InvoiceDetail from "./pages/InvoiceDetail";
-import Payments from "./pages/Payments";
-import Inventory from "./pages/Inventory";
-import InventoryDetail from "./pages/InventoryDetail";
-import Assets from "./pages/Assets";
-import AssetDetail from "./pages/AssetDetail";
-import Issues from "./pages/Issues";
-import IssueDetail from "./pages/IssueDetail";
-import Vendors from "./pages/Vendors";
-import VendorDetail from "./pages/VendorDetail";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Team from "./pages/Team";
-import TeamMemberDetail from "./pages/TeamMemberDetail";
-import Roles from "./pages/Roles";
-import ApiKeys from "./pages/ApiKeys";
-import Banking from "./pages/Banking";
-import BankAccountDetail from "./pages/BankAccountDetail";
-import KnowledgeBase from "./pages/KnowledgeBase";
-import KBArticleDetail from "./pages/KBArticleDetail";
-import Locations from "./pages/Locations";
-import LocationDetail from "./pages/LocationDetail";
-import Docs from "./pages/Docs";
-import ActivityLog from "./pages/ActivityLog";
-import NotFound from "./pages/NotFound";
+
+// All other pages are code-split so the initial bundle stays small; each
+// route's chunk loads on demand behind the Suspense fallback below.
+const SignUp = lazy(() => import("./pages/SignUp"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Clients = lazy(() => import("./pages/Clients"));
+const ClientDetail = lazy(() => import("./pages/ClientDetail"));
+const Jobs = lazy(() => import("./pages/Jobs"));
+const JobDetail = lazy(() => import("./pages/JobDetail"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const InvoiceDetail = lazy(() => import("./pages/InvoiceDetail"));
+const Payments = lazy(() => import("./pages/Payments"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const InventoryDetail = lazy(() => import("./pages/InventoryDetail"));
+const Assets = lazy(() => import("./pages/Assets"));
+const AssetDetail = lazy(() => import("./pages/AssetDetail"));
+const Issues = lazy(() => import("./pages/Issues"));
+const IssueDetail = lazy(() => import("./pages/IssueDetail"));
+const Vendors = lazy(() => import("./pages/Vendors"));
+const VendorDetail = lazy(() => import("./pages/VendorDetail"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Team = lazy(() => import("./pages/Team"));
+const TeamMemberDetail = lazy(() => import("./pages/TeamMemberDetail"));
+const Roles = lazy(() => import("./pages/Roles"));
+const ApiKeys = lazy(() => import("./pages/ApiKeys"));
+const Banking = lazy(() => import("./pages/Banking"));
+const BankAccountDetail = lazy(() => import("./pages/BankAccountDetail"));
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const KBArticleDetail = lazy(() => import("./pages/KBArticleDetail"));
+const Locations = lazy(() => import("./pages/Locations"));
+const LocationDetail = lazy(() => import("./pages/LocationDetail"));
+const Docs = lazy(() => import("./pages/Docs"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -55,6 +60,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading…</div>}>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
@@ -94,6 +100,7 @@ const App = () => (
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </BrowserRouter>
           </BrandingProvider>
         </PermissionProvider>

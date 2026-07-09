@@ -67,6 +67,7 @@ export default function InvoiceDetail() {
   const [client, setClient] = useState<Client | null>(null);
   const [clientCredit, setClientCredit] = useState<number>(0);
   const [showAssetSelector, setShowAssetSelector] = useState(false);
+  const [autoInvoiceNumber, setAutoInvoiceNumber] = useState('');
 
   const isDraft = invoice.status === 'draft';
   const isEditable = isNew || isDraft;
@@ -229,12 +230,17 @@ export default function InvoiceDetail() {
       .limit(1)
       .single();
     
-    const prefix = settings?.invoice_prefix || 'INV';
+    // Preview only. The prefix already includes its separator (default 'INV-'),
+    // and this must match the server's allocator format (prefix + padded number,
+    // no extra dash) so the previewed number equals the one saved at allocation.
+    const prefix = settings?.invoice_prefix || 'INV-';
     const nextNum = settings?.invoice_next_number || 1;
-    
+    const previewNumber = `${prefix}${String(nextNum).padStart(5, '0')}`;
+
+    setAutoInvoiceNumber(previewNumber);
     setInvoice(prev => ({
       ...prev,
-      invoice_number: `${prefix}-${String(nextNum).padStart(5, '0')}`
+      invoice_number: previewNumber
     }));
   }
 
@@ -387,12 +393,28 @@ export default function InvoiceDetail() {
 
     if (isNew) {
       const { data: userData } = await supabase.auth.getUser();
+
+      // Determine the final invoice number. If the user left the auto-generated
+      // preview untouched, allocate the authoritative number atomically at save
+      // time (this is what actually reserves it and guarantees uniqueness).
+      // If the user typed a custom number, respect it as-is.
+      let finalInvoiceNumber = invoice.invoice_number;
+      if (!invoice.invoice_number || invoice.invoice_number === autoInvoiceNumber) {
+        const { data: numData, error: numError } = await supabase.functions.invoke('allocate-invoice-number');
+        if (numError) {
+          toast({ title: 'Error', description: numError.message, variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+        finalInvoiceNumber = numData.invoice_number;
+      }
+
       const { data, error } = await supabase
         .from('invoices')
-        .insert({ ...invoice, created_by: userData.user?.id } as any)
+        .insert({ ...invoice, invoice_number: finalInvoiceNumber, created_by: userData.user?.id } as any)
         .select()
         .single();
-      
+
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
         setSaving(false);
@@ -419,11 +441,9 @@ export default function InvoiceDetail() {
         await supabase.from('invoice_lines').insert(linesToInsert);
       }
 
-      // Update next invoice number
-      await supabase
-        .from('company_settings')
-        .update({ invoice_next_number: (parseInt(invoice.invoice_number?.split('-').pop() || '0') || 0) + 1 })
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+      // Note: the invoice number counter is now advanced atomically by the
+      // allocate-invoice-number function at allocation time above, so there is
+      // no separate client-side counter update here anymore.
 
       toast({ title: 'Success', description: 'Invoice created' });
       navigate(`/invoices/${data.id}`);

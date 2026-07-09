@@ -196,6 +196,76 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (populate default_rental_rate):', error);
   }
+
+  // Migration: Add invite_token and invite_expires_at to profiles (for invite-based onboarding)
+  try {
+    const profileColumns = database.pragma('table_info(profiles)') as Array<{ name: string }>;
+    const profileColumnNames = profileColumns.map(c => c.name);
+
+    if (!profileColumnNames.includes('invite_token')) {
+      database.exec("ALTER TABLE profiles ADD COLUMN invite_token TEXT");
+      console.log('Migration: Added invite_token column to profiles');
+    }
+    if (!profileColumnNames.includes('invite_expires_at')) {
+      database.exec("ALTER TABLE profiles ADD COLUMN invite_expires_at TEXT");
+      console.log('Migration: Added invite_expires_at column to profiles');
+    }
+  } catch (error) {
+    console.error('Migration error (profiles invite columns):', error);
+  }
+
+  // Migration: Add job_prefix and job_next_number to company_settings
+  // (mirrors invoice_prefix/invoice_next_number, used by allocateJobNumber())
+  try {
+    const settingsColumns = database.pragma('table_info(company_settings)') as Array<{ name: string }>;
+    const settingsColumnNames = settingsColumns.map(c => c.name);
+
+    if (!settingsColumnNames.includes('job_prefix')) {
+      database.exec("ALTER TABLE company_settings ADD COLUMN job_prefix TEXT DEFAULT 'JOB-'");
+      console.log('Migration: Added job_prefix column to company_settings');
+    }
+    if (!settingsColumnNames.includes('job_next_number')) {
+      database.exec("ALTER TABLE company_settings ADD COLUMN job_next_number INTEGER DEFAULT 1");
+      console.log('Migration: Added job_next_number column to company_settings');
+    }
+  } catch (error) {
+    console.error('Migration error (company_settings job numbering columns):', error);
+  }
+
+  // Migration: Add a UNIQUE index on invoices.invoice_number, if it's safe to do so.
+  // Older databases may already contain duplicate invoice numbers (a symptom of the
+  // COUNT(*)-based generation bug this migration accompanies the fix for). Creating
+  // a UNIQUE index over existing duplicates would throw and break server boot, so we
+  // check first and skip (with a warning) rather than fail startup. NULLs are fine:
+  // SQLite unique indexes allow any number of NULLs.
+  try {
+    const dupInvoice = database.prepare(
+      `SELECT invoice_number FROM invoices WHERE invoice_number IS NOT NULL GROUP BY invoice_number HAVING COUNT(*) > 1 LIMIT 1`
+    ).get();
+    if (dupInvoice) {
+      console.warn('Migration: Skipped UNIQUE index on invoices.invoice_number - existing duplicates found');
+    } else {
+      database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)');
+      console.log('Migration: Ensured UNIQUE index idx_invoices_invoice_number');
+    }
+  } catch (error) {
+    console.error('Migration error (idx_invoices_invoice_number):', error);
+  }
+
+  // Migration: Add a UNIQUE index on jobs.job_number, same safety approach as above.
+  try {
+    const dupJob = database.prepare(
+      `SELECT job_number FROM jobs WHERE job_number IS NOT NULL GROUP BY job_number HAVING COUNT(*) > 1 LIMIT 1`
+    ).get();
+    if (dupJob) {
+      console.warn('Migration: Skipped UNIQUE index on jobs.job_number - existing duplicates found');
+    } else {
+      database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_job_number ON jobs(job_number)');
+      console.log('Migration: Ensured UNIQUE index idx_jobs_job_number');
+    }
+  } catch (error) {
+    console.error('Migration error (idx_jobs_job_number):', error);
+  }
 }
 
 export function closeDatabase(): void {

@@ -420,6 +420,39 @@ const auth = {
     }
   },
 
+  async acceptInvite(token: string, password: string) {
+    try {
+      const response = await fetch(`${API_URL}/auth/accept-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        return { data: { user: null, session: null }, error: { message: error.error || response.statusText } };
+      }
+
+      const data = await response.json();
+      setAuthToken(data.token);
+
+      const session = { access_token: data.token, user: data.user };
+
+      // Notify listeners
+      authStateListeners.forEach(listener => listener('SIGNED_IN', session));
+
+      return {
+        data: {
+          user: data.user,
+          session
+        },
+        error: null
+      };
+    } catch (error) {
+      return { data: { user: null, session: null }, error: { message: (error as Error).message } };
+    }
+  },
+
   async signOut() {
     setAuthToken(null);
     authStateListeners.forEach(listener => listener('SIGNED_OUT', null));

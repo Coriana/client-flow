@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, execute } from '../db/database.js';
 import { getUserPermission } from '../middleware/auth.js';
 import { logActivity, getEntityName, loggedTables } from '../utils/activityLogger.js';
+import { areValidColumns } from '../db/columns.js';
+import { allocateInvoiceNumber, allocateJobNumber } from '../utils/numbering.js';
 
 const router = Router();
 
@@ -157,22 +159,22 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       const payload = req.body || {};
       if (!payload.id) payload.id = uuidv4();
       
-      // Auto-generate required fields for specific tables
+      // Auto-generate required fields for specific tables. Numbers come from
+      // the shared, transaction-guarded counters in company_settings so they
+      // never collide or get reused after a delete (see server/utils/numbering.ts).
       if (table === 'jobs' && !payload.job_number) {
-        const year = new Date().getFullYear();
-        const countResult = queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM jobs`, []);
-        const count = countResult.data?.cnt || 0;
-        payload.job_number = `JOB-${year}-${String(count + 1).padStart(4, '0')}`;
+        payload.job_number = allocateJobNumber();
       }
-      
+
       if (table === 'invoices' && !payload.invoice_number) {
-        const year = new Date().getFullYear();
-        const countResult = queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM invoices`, []);
-        const count = countResult.data?.cnt || 0;
-        payload.invoice_number = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+        payload.invoice_number = allocateInvoiceNumber();
       }
       
       const columns = Object.keys(payload);
+      if (!areValidColumns(table, columns)) {
+        res.status(400).json({ error: 'Invalid column name' });
+        return;
+      }
       const placeholders = columns.map(() => '?').join(', ');
       const values = Object.values(payload);
       const execResult = execute(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values);
@@ -213,7 +215,12 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       }
       
       const payload = req.body || {};
-      const sets = Object.keys(payload).map(key => `${key} = ?`).join(', ');
+      const columns = Object.keys(payload);
+      if (!areValidColumns(table, columns)) {
+        res.status(400).json({ error: 'Invalid column name' });
+        return;
+      }
+      const sets = columns.map(key => `${key} = ?`).join(', ');
       const values = [...Object.values(payload), idParam];
       const execResult = execute(`UPDATE ${table} SET ${sets} WHERE id = ?`, values);
       

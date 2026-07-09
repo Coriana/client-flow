@@ -802,6 +802,8 @@ CREATE TABLE IF NOT EXISTS company_settings (
   default_role_id TEXT REFERENCES roles(id),
   invoice_prefix TEXT DEFAULT 'INV-',
   invoice_next_number INTEGER DEFAULT 1,
+  job_prefix TEXT DEFAULT 'JOB-',
+  job_next_number INTEGER DEFAULT 1,
   setup_completed INTEGER DEFAULT 0,
   user_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
