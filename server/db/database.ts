@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { readFileSync } from 'fs';
+import { readFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -13,6 +13,13 @@ let db: Database.Database | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
+    // better-sqlite3 won't create the parent directory, and data/ is
+    // gitignored — so a fresh checkout has no data/ dir. Create it so the
+    // server boots on a clean clone instead of crashing.
+    const dbDir = dirname(DB_PATH);
+    if (dbDir && !existsSync(dbDir)) {
+      mkdirSync(dbDir, { recursive: true });
+    }
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
