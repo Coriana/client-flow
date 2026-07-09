@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -21,47 +22,41 @@ type Contact = Tables<'client_contacts'>;
 
 type ClientWithContact = Client & { primary_contact?: Contact | null };
 
+async function fetchClients(): Promise<ClientWithContact[]> {
+  const { data: clientsData, error } = await supabase
+    .from('clients')
+    .select('*')
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching clients:', error);
+    return [];
+  }
+
+  // Fetch primary contacts for all clients
+  const { data: contacts } = await supabase
+    .from('client_contacts')
+    .select('*')
+    .eq('is_primary', true)
+    .eq('is_active', true);
+
+  const contactMap = new Map<string, Contact>();
+  contacts?.forEach(c => contactMap.set(c.client_id, c));
+
+  return (clientsData || []).map(client => ({
+    ...client,
+    primary_contact: contactMap.get(client.id) || null,
+  }));
+}
+
 export default function Clients() {
-  const [clients, setClients] = useState<ClientWithContact[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { data: clients = [], isLoading: loading } = useQuery({
+    queryKey: ['clients'],
+    queryFn: fetchClients,
+  });
 
-  useEffect(() => {
-    async function fetchClients() {
-      const { data: clientsData, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name');
-      
-      if (error) {
-        console.error('Error fetching clients:', error);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch primary contacts for all clients
-      const { data: contacts } = await supabase
-        .from('client_contacts')
-        .select('*')
-        .eq('is_primary', true)
-        .eq('is_active', true);
-
-      const contactMap = new Map<string, Contact>();
-      contacts?.forEach(c => contactMap.set(c.client_id, c));
-
-      const clientsWithContacts = (clientsData || []).map(client => ({
-        ...client,
-        primary_contact: contactMap.get(client.id) || null
-      }));
-
-      setClients(clientsWithContacts);
-      setLoading(false);
-    }
-    
-    fetchClients();
-  }, []);
-
-  const filteredClients = clients.filter(client => 
+  const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(search.toLowerCase()) ||
     client.trading_name?.toLowerCase().includes(search.toLowerCase()) ||
     client.primary_contact?.email?.toLowerCase().includes(search.toLowerCase()) ||

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -25,30 +26,27 @@ const statusColors: Record<string, string> = {
   archived: 'secondary',
 };
 
+async function fetchJobs(): Promise<Job[]> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*, clients(name)')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching jobs:', error);
+    return [];
+  }
+  return data || [];
+}
+
 export default function Jobs() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { data: jobs = [], isLoading: loading } = useQuery({
+    queryKey: ['jobs'],
+    queryFn: fetchJobs,
+  });
 
-  useEffect(() => {
-    async function fetchJobs() {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*, clients(name)')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching jobs:', error);
-      } else {
-        setJobs(data || []);
-      }
-      setLoading(false);
-    }
-    
-    fetchJobs();
-  }, []);
-
-  const filteredJobs = jobs.filter(job => 
+  const filteredJobs = jobs.filter(job =>
     job.name.toLowerCase().includes(search.toLowerCase()) ||
     job.job_number.toLowerCase().includes(search.toLowerCase()) ||
     job.clients?.name?.toLowerCase().includes(search.toLowerCase())
