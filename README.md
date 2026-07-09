@@ -109,6 +109,17 @@ Programmatic access for integrations and AI tools:
 - **Vendor Spend** - Spending by vendor
 - **GST Summary** - Tax summary
 
+### Backups
+
+The server automatically backs up the SQLite database on startup and on a recurring interval, using better-sqlite3's online backup API (safe to run while the app is live):
+
+- Backups are written to `BACKUP_DIR` (default `data/backups`, already gitignored) as `app-YYYYMMDD-HHmmss.db`
+- Runs every `BACKUP_INTERVAL_HOURS` (default `24`); set to `0` to disable
+- Only the newest `BACKUP_RETENTION` backups are kept (default `7`); older ones are deleted automatically
+- A backup failure is logged but never crashes the server
+
+Configure these in `.env.local` if you want different values - see `.env.example`.
+
 ## Notes
 
 - The local database file lives at `data/app.db` and is gitignored.
