@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search } from 'lucide-react';
@@ -24,28 +25,25 @@ const statusColors: Record<string, string> = {
   retired: 'outline',
 };
 
-export default function Assets() {
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+async function fetchAssets(): Promise<Asset[]> {
+  const { data, error } = await supabase
+    .from('assets')
+    .select('*, clients:assigned_client_id(name)')
+    .order('name');
 
-  useEffect(() => {
-    async function fetchAssets() {
-      const { data, error } = await supabase
-        .from('assets')
-        .select('*, clients:assigned_client_id(name)')
-        .order('name');
-      
-      if (error) {
-        console.error('Error fetching assets:', error);
-      } else {
-        setAssets((data as any) || []);
-      }
-      setLoading(false);
-    }
-    
-    fetchAssets();
-  }, []);
+  if (error) {
+    console.error('Error fetching assets:', error);
+    return [];
+  }
+  return (data as any) || [];
+}
+
+export default function Assets() {
+  const [search, setSearch] = useState('');
+  const { data: assets = [], isLoading: loading } = useQuery({
+    queryKey: ['assets'],
+    queryFn: fetchAssets,
+  });
 
   const filteredAssets = assets.filter(asset => 
     asset.name.toLowerCase().includes(search.toLowerCase()) ||

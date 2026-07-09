@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -35,45 +36,44 @@ const LOCATION_TYPES = [
   'Other',
 ];
 
+async function fetchLocations(): Promise<Location[]> {
+  const { data, error } = await supabase
+    .from('locations')
+    .select('*')
+    .order('name');
+
+  if (error || !data) {
+    return [];
+  }
+
+  // Fetch linked entity counts
+  const locationsWithCounts = await Promise.all(
+    data.map(async (location) => {
+      const [vendors, clients, assets] = await Promise.all([
+        supabase.from('vendors').select('id', { count: 'exact', head: true }).eq('location_id', location.id),
+        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('location_id', location.id),
+        supabase.from('assets').select('id', { count: 'exact', head: true }).eq('location_id', location.id),
+      ]);
+
+      return {
+        ...location,
+        vendor_count: vendors.count || 0,
+        client_count: clients.count || 0,
+        asset_count: assets.count || 0,
+      };
+    })
+  );
+  return locationsWithCounts;
+}
+
 export default function Locations() {
   const navigate = useNavigate();
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-
-  useEffect(() => {
-    fetchLocations();
-  }, []);
-
-  async function fetchLocations() {
-    const { data, error } = await supabase
-      .from('locations')
-      .select('*')
-      .order('name');
-
-    if (!error && data) {
-      // Fetch linked entity counts
-      const locationsWithCounts = await Promise.all(
-        data.map(async (location) => {
-          const [vendors, clients, assets] = await Promise.all([
-            supabase.from('vendors').select('id', { count: 'exact', head: true }).eq('location_id', location.id),
-            supabase.from('clients').select('id', { count: 'exact', head: true }).eq('location_id', location.id),
-            supabase.from('assets').select('id', { count: 'exact', head: true }).eq('location_id', location.id),
-          ]);
-
-          return {
-            ...location,
-            vendor_count: vendors.count || 0,
-            client_count: clients.count || 0,
-            asset_count: assets.count || 0,
-          };
-        })
-      );
-      setLocations(locationsWithCounts);
-    }
-    setLoading(false);
-  }
+  const { data: locations = [], isLoading: loading } = useQuery({
+    queryKey: ['locations'],
+    queryFn: fetchLocations,
+  });
 
   const filteredLocations = locations.filter((location) => {
     const matchesSearch =

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -13,19 +14,17 @@ type Issue = Tables<'issues'> & { clients?: { name: string } | null };
 const severityColors: Record<string, string> = { low: 'secondary', medium: 'default', high: 'outline', critical: 'destructive' };
 const statusColors: Record<string, string> = { open: 'destructive', in_progress: 'default', resolved: 'secondary', closed: 'outline' };
 
-export default function Issues() {
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+async function fetchIssues(): Promise<Issue[]> {
+  const { data } = await supabase.from('issues').select('*, clients(name)').order('created_at', { ascending: false });
+  return data || [];
+}
 
-  useEffect(() => {
-    async function fetchIssues() {
-      const { data } = await supabase.from('issues').select('*, clients(name)').order('created_at', { ascending: false });
-      setIssues(data || []);
-      setLoading(false);
-    }
-    fetchIssues();
-  }, []);
+export default function Issues() {
+  const [search, setSearch] = useState('');
+  const { data: issues = [], isLoading: loading } = useQuery({
+    queryKey: ['issues'],
+    queryFn: fetchIssues,
+  });
 
   const filteredIssues = issues.filter(i => i.title.toLowerCase().includes(search.toLowerCase()));
 

@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, AlertTriangle } from 'lucide-react';
@@ -17,28 +18,25 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Item = Tables<'items'>;
 
-export default function Inventory() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+async function fetchItems(): Promise<Item[]> {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .order('name');
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  async function fetchItems() {
-    const { data, error } = await supabase
-      .from('items')
-      .select('*')
-      .order('name');
-    
-    if (error) {
-      console.error('Error fetching items:', error);
-    } else {
-      setItems(data || []);
-    }
-    setLoading(false);
+  if (error) {
+    console.error('Error fetching items:', error);
+    return [];
   }
+  return data || [];
+}
+
+export default function Inventory() {
+  const [search, setSearch] = useState('');
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: fetchItems,
+  });
 
   const filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(search.toLowerCase()) ||
