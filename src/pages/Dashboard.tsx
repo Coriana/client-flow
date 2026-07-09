@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -83,6 +84,26 @@ interface ActivityLogEntry {
   user_name?: string;
 }
 
+interface DashboardData {
+  stats: DashboardStats;
+  bankAccounts: BankAccount[];
+  outstandingInvoices: OutstandingInvoice[];
+  openIssues: OpenIssue[];
+  lowStockItems: LowStockItem[];
+  topJobs: any[];
+  activityItems: ActivityLogEntry[];
+}
+
+const DEFAULT_STATS: DashboardStats = {
+  outstandingInvoices: 0,
+  outstandingAmount: 0,
+  cashCollectedThisMonth: 0,
+  openIssues: 0,
+  activeJobs: 0,
+  lowStockItems: 0,
+  totalBankBalance: 0,
+};
+
 const ENTITY_TYPES = [
   { value: 'all', label: 'All Activity' },
   { value: 'clients', label: 'Clients' },
@@ -94,172 +115,159 @@ const ENTITY_TYPES = [
   { value: 'items', label: 'Inventory' },
 ];
 
+async function fetchDashboardData(): Promise<DashboardData> {
+  // Fetch outstanding invoices with client info
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, total, amount_paid, status, due_date, clients(name)')
+    .in('status', ['sent', 'partially_paid', 'overdue'])
+    .order('due_date', { ascending: true })
+    .limit(10);
+
+  const outstandingAmount = invoices?.reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0) || 0;
+
+  // Fetch cash collected this month
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('amount')
+    .gte('date', startOfMonth.toISOString().split('T')[0]);
+
+  const cashCollected = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+
+  // Fetch open issues with client info
+  const { data: issues } = await supabase
+    .from('issues')
+    .select('id, title, severity, status, created_at, clients(name)')
+    .in('status', ['open', 'in_progress'])
+    .order('severity', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  // Fetch active jobs count
+  const { count: jobCount } = await supabase
+    .from('jobs')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'active');
+
+  // Fetch low stock items
+  const { data: items } = await supabase
+    .from('items')
+    .select('id, name, sku, current_stock, reorder_level')
+    .eq('is_active', true);
+
+  const lowStock = (items || []).filter(item =>
+    (item.current_stock || 0) <= (item.reorder_level || 0) && (item.reorder_level || 0) > 0
+  );
+
+  // Fetch top 5 jobs by revenue
+  const { data: jobs } = await supabase
+    .from('jobs')
+    .select(`
+      id,
+      name,
+      job_number,
+      invoices (total, amount_paid)
+    `)
+    .eq('status', 'active')
+    .limit(5);
+
+  const jobsWithRevenue = jobs?.map(job => ({
+    ...job,
+    revenue: job.invoices?.reduce((sum: number, inv: any) => sum + inv.amount_paid, 0) || 0,
+  })).sort((a, b) => b.revenue - a.revenue) || [];
+
+  // Fetch bank accounts
+  const { data: bankAccountsData } = await supabase
+    .from('bank_accounts')
+    .select('id, name, bank_name, current_balance, is_default')
+    .eq('is_active', true)
+    .order('is_default', { ascending: false })
+    .order('name');
+
+  const totalBankBalance = (bankAccountsData || []).reduce(
+    (sum, acc) => sum + Number(acc.current_balance || 0), 0
+  );
+
+  // Fetch recent activity from activity_log
+  const { data: activityLogData } = await supabase
+    .from('activity_log')
+    .select('id, user_id, action, entity_type, entity_id, entity_name, created_at')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Fetch user profiles for activity log entries
+  const userIds = [...new Set((activityLogData || []).filter(a => a.user_id).map(a => a.user_id!))];
+  let profilesMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', userIds);
+
+    profiles?.forEach(p => {
+      profilesMap[p.id] = p.full_name || p.email || 'Unknown';
+    });
+  }
+
+  const enrichedActivity = (activityLogData || []).map(entry => ({
+    ...entry,
+    user_name: entry.user_id ? profilesMap[entry.user_id] || 'System' : 'System',
+  }));
+
+  return {
+    stats: {
+      outstandingInvoices: invoices?.length || 0,
+      outstandingAmount,
+      cashCollectedThisMonth: cashCollected,
+      openIssues: issues?.length || 0,
+      activeJobs: jobCount || 0,
+      lowStockItems: lowStock.length,
+      totalBankBalance,
+    },
+    bankAccounts: bankAccountsData || [],
+    outstandingInvoices: invoices || [],
+    openIssues: issues || [],
+    lowStockItems: lowStock,
+    topJobs: jobsWithRevenue,
+    activityItems: enrichedActivity,
+  };
+}
+
 export default function Dashboard() {
   const { toast } = useToast();
   const { branding, formatCurrency } = useBranding();
   const { isComplete: setupComplete, isLoading: setupLoading, refetch: refetchSetup } = useSetupComplete();
-  const [stats, setStats] = useState<DashboardStats>({
-    outstandingInvoices: 0,
-    outstandingAmount: 0,
-    cashCollectedThisMonth: 0,
-    openIssues: 0,
-    activeJobs: 0,
-    lowStockItems: 0,
-    totalBankBalance: 0,
-  });
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([]);
-  const [openIssues, setOpenIssues] = useState<OpenIssue[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [topJobs, setTopJobs] = useState<any[]>([]);
-  const [activityItems, setActivityItems] = useState<ActivityLogEntry[]>([]);
   const [activityFilter, setActivityFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
   const [generatingInvoices, setGeneratingInvoices] = useState(false);
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        // Fetch outstanding invoices with client info
-        const { data: invoices } = await supabase
-          .from('invoices')
-          .select('id, invoice_number, total, amount_paid, status, due_date, clients(name)')
-          .in('status', ['sent', 'partially_paid', 'overdue'])
-          .order('due_date', { ascending: true })
-          .limit(10);
-        
-        const outstandingAmount = invoices?.reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0) || 0;
-        setOutstandingInvoices(invoices || []);
-        
-        // Fetch cash collected this month
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        
-        const { data: payments } = await supabase
-          .from('payments')
-          .select('amount')
-          .gte('date', startOfMonth.toISOString().split('T')[0]);
-        
-        const cashCollected = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-        
-        // Fetch open issues with client info
-        const { data: issues } = await supabase
-          .from('issues')
-          .select('id, title, severity, status, created_at, clients(name)')
-          .in('status', ['open', 'in_progress'])
-          .order('severity', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        setOpenIssues(issues || []);
-        
-        // Fetch active jobs count
-        const { count: jobCount } = await supabase
-          .from('jobs')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'active');
-        
-        // Fetch low stock items
-        const { data: items } = await supabase
-          .from('items')
-          .select('id, name, sku, current_stock, reorder_level')
-          .eq('is_active', true);
-        
-        const lowStock = (items || []).filter(item => 
-          (item.current_stock || 0) <= (item.reorder_level || 0) && (item.reorder_level || 0) > 0
-        );
-        setLowStockItems(lowStock);
-        
-        // Fetch top 5 jobs by revenue
-        const { data: jobs } = await supabase
-          .from('jobs')
-          .select(`
-            id,
-            name,
-            job_number,
-            invoices (total, amount_paid)
-          `)
-          .eq('status', 'active')
-          .limit(5);
-        
-        const jobsWithRevenue = jobs?.map(job => ({
-          ...job,
-          revenue: job.invoices?.reduce((sum: number, inv: any) => sum + inv.amount_paid, 0) || 0,
-        })).sort((a, b) => b.revenue - a.revenue) || [];
-        
-        // Fetch bank accounts
-        const { data: bankAccountsData } = await supabase
-          .from('bank_accounts')
-          .select('id, name, bank_name, current_balance, is_default')
-          .eq('is_active', true)
-          .order('is_default', { ascending: false })
-          .order('name');
-        
-        const totalBankBalance = (bankAccountsData || []).reduce(
-          (sum, acc) => sum + Number(acc.current_balance || 0), 0
-        );
-        setBankAccounts(bankAccountsData || []);
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: fetchDashboardData,
+  });
 
-        // Fetch recent activity from activity_log
-        const { data: activityLogData } = await supabase
-          .from('activity_log')
-          .select('id, user_id, action, entity_type, entity_id, entity_name, created_at')
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        // Fetch user profiles for activity log entries
-        const userIds = [...new Set((activityLogData || []).filter(a => a.user_id).map(a => a.user_id!))];
-        let profilesMap: Record<string, string> = {};
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', userIds);
-          
-          profiles?.forEach(p => {
-            profilesMap[p.id] = p.full_name || p.email || 'Unknown';
-          });
-        }
-
-        const enrichedActivity = (activityLogData || []).map(entry => ({
-          ...entry,
-          user_name: entry.user_id ? profilesMap[entry.user_id] || 'System' : 'System',
-        }));
-        
-        setActivityItems(enrichedActivity);
-        
-        setStats({
-          outstandingInvoices: invoices?.length || 0,
-          outstandingAmount,
-          cashCollectedThisMonth: cashCollected,
-          openIssues: issues?.length || 0,
-          activeJobs: jobCount || 0,
-          lowStockItems: lowStock.length,
-          totalBankBalance,
-        });
-        
-        setTopJobs(jobsWithRevenue);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchDashboardData();
-  }, []);
-
+  const stats = data?.stats ?? DEFAULT_STATS;
+  const bankAccounts = data?.bankAccounts ?? [];
+  const outstandingInvoices = data?.outstandingInvoices ?? [];
+  const openIssues = data?.openIssues ?? [];
+  const lowStockItems = data?.lowStockItems ?? [];
+  const topJobs = data?.topJobs ?? [];
+  const activityItems = data?.activityItems ?? [];
+  const loading = isLoading;
 
   async function handleGenerateJobInvoices() {
     setGeneratingInvoices(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-job-invoices');
+      const { data: invokeData, error } = await supabase.functions.invoke('generate-job-invoices');
       if (error) throw error;
       toast({
         title: 'Job Invoices',
-        description: data.message,
+        description: invokeData.message,
       });
+      refetch();
     } catch (error: any) {
       toast({
         title: 'Error',

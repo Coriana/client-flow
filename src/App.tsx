@@ -49,7 +49,16 @@ const Docs = lazy(() => import("./pages/Docs"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,          // 30s: avoid refetching on every mount
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
