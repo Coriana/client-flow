@@ -134,10 +134,19 @@ export async function sendInviteEmail(
   to: string,
   inviterName: string,
   companyName: string,
-  signupUrl: string
+  signupUrl: string,
+  inviteToken?: string
 ): Promise<{ success: boolean; error?: string }> {
   const subject = `You've been invited to join ${companyName}`;
-  
+
+  // If an invite token was provided, append it to the signup URL so the
+  // recipient lands on a page that can call /auth/accept-invite. Backward
+  // compatible: existing callers that omit the token keep the plain URL.
+  if (inviteToken) {
+    const separator = signupUrl.includes('?') ? '&' : '?';
+    signupUrl = `${signupUrl}${separator}token=${encodeURIComponent(inviteToken)}`;
+  }
+
   const html = `
 <!DOCTYPE html>
 <html>

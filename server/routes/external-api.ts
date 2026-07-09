@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, execute } from '../db/database.js';
 import { getUserPermission } from '../middleware/auth.js';
 import { logActivity, getEntityName, loggedTables } from '../utils/activityLogger.js';
+import { areValidColumns } from '../db/columns.js';
 
 const router = Router();
 
@@ -173,6 +174,10 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       }
       
       const columns = Object.keys(payload);
+      if (!areValidColumns(table, columns)) {
+        res.status(400).json({ error: 'Invalid column name' });
+        return;
+      }
       const placeholders = columns.map(() => '?').join(', ');
       const values = Object.values(payload);
       const execResult = execute(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`, values);
@@ -213,7 +218,12 @@ const handleExternalRequest = async (req: Request, res: Response) => {
       }
       
       const payload = req.body || {};
-      const sets = Object.keys(payload).map(key => `${key} = ?`).join(', ');
+      const columns = Object.keys(payload);
+      if (!areValidColumns(table, columns)) {
+        res.status(400).json({ error: 'Invalid column name' });
+        return;
+      }
+      const sets = columns.map(key => `${key} = ?`).join(', ');
       const values = [...Object.values(payload), idParam];
       const execResult = execute(`UPDATE ${table} SET ${sets} WHERE id = ?`, values);
       

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
@@ -15,8 +16,45 @@ import mailRoutes from './routes/mail.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Refuse to boot in production with a missing or well-known placeholder
+// JWT secret - continuing would mean anyone could forge valid session tokens.
+const PLACEHOLDER_JWT_SECRETS = new Set([
+  'change-me-in-production',
+  'local-dev-secret-change-in-production',
+  'your-secret-key',
+  'your-secure-secret-key-here',
+]);
+
+if (process.env.NODE_ENV === 'production') {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || PLACEHOLDER_JWT_SECRETS.has(jwtSecret)) {
+    console.error(
+      'FATAL: JWT_SECRET is missing or set to a known placeholder value. ' +
+      'Set a strong, unique JWT_SECRET before starting in production.'
+    );
+    process.exit(1);
+  }
+
+  if (!process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*') {
+    console.warn(
+      'WARNING: CORS_ORIGIN is not set (or is "*") in production. ' +
+      'This allows requests from any origin. Set CORS_ORIGIN to your trusted origin(s).'
+    );
+  }
+}
+
 const app = express();
 const PORT = process.env.API_PORT || 3001;
+
+// Rate limit authentication endpoints to slow down credential stuffing /
+// brute-force attempts against login and invite acceptance.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+});
 
 const allowedOrigins = (process.env.CORS_ORIGIN ?? '*')
   .split(',')
@@ -53,6 +91,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
+// Rate limit only the sensitive auth actions (credential submission / invite
+// acceptance). The session check is polled on every app load and focus, so
+// throttling the whole /api/auth router would sign active users out.
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/accept-invite', authLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/storage', storageRoutes);
 app.use('/api/bill-import', billImportRoutes);
@@ -106,27 +149,29 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
-  console.log(`Database location: ${process.env.DATABASE_PATH || join(process.cwd(), 'data', 'app.db')}`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down...');
-  server.close(() => {
-    closeDatabase();
-    process.exit(0);
+// Start server (skipped under test, where supertest drives the app directly)
+if (process.env.NODE_ENV !== 'test') {
+  const server = app.listen(PORT, () => {
+    console.log(`API server running on http://localhost:${PORT}`);
+    console.log(`Database location: ${process.env.DATABASE_PATH || join(process.cwd(), 'data', 'app.db')}`);
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down...');
-  server.close(() => {
-    closeDatabase();
-    process.exit(0);
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down...');
+    server.close(() => {
+      closeDatabase();
+      process.exit(0);
+    });
   });
-});
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down...');
+    server.close(() => {
+      closeDatabase();
+      process.exit(0);
+    });
+  });
+}
 
 export default app;

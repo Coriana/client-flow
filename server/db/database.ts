@@ -196,6 +196,23 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (populate default_rental_rate):', error);
   }
+
+  // Migration: Add invite_token and invite_expires_at to profiles (for invite-based onboarding)
+  try {
+    const profileColumns = database.pragma('table_info(profiles)') as Array<{ name: string }>;
+    const profileColumnNames = profileColumns.map(c => c.name);
+
+    if (!profileColumnNames.includes('invite_token')) {
+      database.exec("ALTER TABLE profiles ADD COLUMN invite_token TEXT");
+      console.log('Migration: Added invite_token column to profiles');
+    }
+    if (!profileColumnNames.includes('invite_expires_at')) {
+      database.exec("ALTER TABLE profiles ADD COLUMN invite_expires_at TEXT");
+      console.log('Migration: Added invite_expires_at column to profiles');
+    }
+  } catch (error) {
+    console.error('Migration error (profiles invite columns):', error);
+  }
 }
 
 export function closeDatabase(): void {
