@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, X, Plus, Trash2, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { todayLocal } from '@/lib/dates';
 import { uuid } from '@/lib/utils';
 import ImportBillCSVDialog, { ImportedAllocation } from '@/components/purchases/ImportBillCSVDialog';
 
@@ -65,7 +66,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
   const [defaultGstRate, setDefaultGstRate] = useState(10); // Default 10% GST
   
   const [purchase, setPurchase] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     vendor_id: '',
     vendor_name: '',
     description: '',
@@ -322,7 +323,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
     
     // Reset form
     setPurchase({
-      date: new Date().toISOString().split('T')[0],
+      date: todayLocal(),
       vendor_id: '',
       vendor_name: '',
       description: '',
@@ -355,7 +356,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle>Make Payment / Record Expense</DialogTitle>
+              <DialogTitle>Pay Vendor / Record Expense</DialogTitle>
               <Button 
                 variant="outline" 
                 size="sm" 

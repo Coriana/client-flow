@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import RecordPaymentDialog from '@/components/RecordPaymentDialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, Trash2, Plus, Mail, Download, Lock, Package } from 'lucide-react';
+import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
+import { ArrowLeft, Save, Trash2, Plus, Mail, Download, Lock, Package, Send, DollarSign } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'>;
@@ -53,7 +55,7 @@ export default function InvoiceDetail() {
   const [invoice, setInvoice] = useState<Partial<Invoice>>({
     invoice_number: '',
     client_id: '',
-    issue_date: new Date().toISOString().split('T')[0],
+    issue_date: todayLocal(),
     due_date: '',
     status: 'draft',
     notes: '',
@@ -68,9 +70,12 @@ export default function InvoiceDetail() {
   const [clientCredit, setClientCredit] = useState<number>(0);
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [autoInvoiceNumber, setAutoInvoiceNumber] = useState('');
+  const [markingAsSent, setMarkingAsSent] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
   const isDraft = invoice.status === 'draft';
   const isEditable = isNew || isDraft;
+  const isPayable = ['sent', 'partially_paid', 'overdue'].includes(invoice.status || '');
 
   // Get available status transitions based on current status
   function getAvailableStatuses(currentStatus: string): { value: string; label: string }[] {
@@ -143,10 +148,10 @@ export default function InvoiceDetail() {
         fetchAvailableJobAssets(invoice.client_id);
         fetchClientCredit(invoice.client_id);
         if (isNew && !invoice.due_date) {
-          const issueDate = new Date(invoice.issue_date || new Date());
+          const issueDate = parseDateOnly(invoice.issue_date || todayLocal());
           const paymentTerms = selectedClient.payment_terms || companySettings.default_payment_terms;
-          issueDate.setDate(issueDate.getDate() + paymentTerms);
-          setInvoice(prev => ({ ...prev, due_date: issueDate.toISOString().split('T')[0] }));
+          const dueDate = addDays(issueDate, paymentTerms);
+          setInvoice(prev => ({ ...prev, due_date: formatDateOnly(dueDate) }));
         }
       }
     }
@@ -519,6 +524,22 @@ export default function InvoiceDetail() {
     }
   }
 
+  async function handleMarkAsSent() {
+    setMarkingAsSent(true);
+    const { error } = await supabase
+      .from('invoices')
+      .update({ status: 'sent' })
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setInvoice(prev => ({ ...prev, status: 'sent' }));
+      toast({ title: 'Success', description: 'Invoice marked as sent' });
+    }
+    setMarkingAsSent(false);
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
   };
@@ -551,7 +572,8 @@ export default function InvoiceDetail() {
     return <div className="text-muted-foreground">Loading...</div>;
   }
 
-  const availableStatuses = getAvailableStatuses(invoice.status || 'draft');
+  const availableStatuses = getAvailableStatuses(invoice.status || 'draft')
+    .filter(s => !isNew || s.value !== 'void');
 
   return (
     <div className="space-y-6">
@@ -582,6 +604,18 @@ export default function InvoiceDetail() {
               <Button variant="outline" size="icon">
                 <Mail className="h-4 w-4" />
               </Button>
+              {isDraft && (
+                <Button variant="outline" onClick={handleMarkAsSent} disabled={markingAsSent}>
+                  <Send className="h-4 w-4 mr-2" />
+                  {markingAsSent ? 'Marking as Sent...' : 'Mark as Sent'}
+                </Button>
+              )}
+              {isPayable && (
+                <Button variant="outline" onClick={() => setRecordPaymentOpen(true)}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Record Payment
+                </Button>
+              )}
               {isDraft && (
                 <Button variant="destructive" size="icon" onClick={handleDelete}>
                   <Trash2 className="h-4 w-4" />
@@ -907,6 +941,15 @@ export default function InvoiceDetail() {
           )}
         </div>
       </div>
+
+      {!isNew && (
+        <RecordPaymentDialog
+          open={recordPaymentOpen}
+          onOpenChange={setRecordPaymentOpen}
+          defaultInvoiceId={id}
+          onSuccess={fetchInvoice}
+        />
+      )}
     </div>
   );
 }
