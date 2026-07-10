@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface Asset {
   id: string;
@@ -33,10 +34,7 @@ export default function AssetRegisterReport() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {

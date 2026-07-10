@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface Receivable {
   id: string;
@@ -31,10 +32,7 @@ export default function AgedReceivablesReport() {
   const [loading, setLoading] = useState(true);
   const [receivables, setReceivables] = useState<Receivable[]>([]);
   const [buckets, setBuckets] = useState<AgingBuckets>({ current: 0, days30: 0, days60: 0, days90: 0, total: 0 });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);

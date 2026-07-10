@@ -14,7 +14,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
+import { useBranding } from '@/contexts/BrandingContext';
+import { addDays, formatDateOnly, formatDisplayDate, parseDateOnly, todayLocal } from '@/lib/dates';
 import { ArrowLeft, Save, Trash2, Plus, X, FileText, Pencil, AlertTriangle, Ban, Package, History } from 'lucide-react';
 import { useAssetConflicts } from '@/hooks/useAssetConflicts';
 import JobHistory from '@/components/JobHistory';
@@ -43,6 +44,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { formatCurrency } = useBranding();
   const confirm = useConfirm();
   const isNew = id === 'new';
   
@@ -824,11 +826,6 @@ export default function JobDetail() {
     navigate(`/invoices/${invoice.id}`);
   }
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
-
   const totalRevenue = invoices.reduce((sum, inv) => sum + inv.amount_paid, 0);
   const totalTimeCost = timesheets.reduce((sum, ts) => sum + (ts.hours * (ts.rate_override || job.hourly_rate || 0)), 0);
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -1305,8 +1302,8 @@ export default function JobDetail() {
                         </Link>
                         <div className="text-sm text-muted-foreground">
                           {formatCurrency(ja.rental_rate)}/{ja.billing_frequency} • 
-                          Started {ja.rental_start_date}
-                          {ja.rental_end_date && ` • Ends ${ja.rental_end_date}`}
+                          Started {formatDisplayDate(ja.rental_start_date)}
+                          {ja.rental_end_date && ` • Ends ${formatDisplayDate(ja.rental_end_date)}`}
                           {!ja.is_active && ' • Inactive'}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -1411,7 +1408,7 @@ export default function JobDetail() {
                     return (
                       <div key={ts.id} className={`flex justify-between items-center p-3 rounded-lg hover:bg-muted ${isLocked ? 'opacity-60' : ''}`}>
                         <div>
-                          <div className="font-medium">{ts.hours} hours - {ts.date}</div>
+                          <div className="font-medium">{ts.hours} hours - {formatDisplayDate(ts.date)}</div>
                           <div className="text-sm text-muted-foreground">
                             {ts.description || 'No description'} • {ts.user_name}
                             {ts.is_billable && <span className="ml-2 text-green-600">Billable</span>}
@@ -1527,7 +1524,7 @@ export default function JobDetail() {
                     return (
                       <div key={exp.id} className={`flex justify-between items-center p-3 rounded-lg hover:bg-muted ${isLocked ? 'opacity-60' : ''}`}>
                         <div>
-                          <div className="font-medium">{formatCurrency(exp.amount)} - {exp.date}</div>
+                          <div className="font-medium">{formatCurrency(exp.amount)} - {formatDisplayDate(exp.date)}</div>
                           <div className="text-sm text-muted-foreground">
                             {exp.description}
                             {exp.category && ` • ${exp.category}`}
@@ -1687,7 +1684,7 @@ export default function JobDetail() {
                       <div>
                         <div className="font-medium">{inv.invoice_number}</div>
                         <div className="text-sm text-muted-foreground">
-                          {inv.issue_date} • Due {inv.due_date}
+                          {formatDisplayDate(inv.issue_date)} • Due {formatDisplayDate(inv.due_date)}
                         </div>
                       </div>
                       <div className="text-right">

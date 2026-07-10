@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, Search, ChevronDown, Send, Download, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { formatDisplayDate } from '@/lib/dates';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'> & { clients?: { name: string; contact_email?: string; email?: string } | null };
@@ -41,6 +43,7 @@ export default function Invoices() {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
 
   useEffect(() => {
     fetchInvoices();
@@ -64,13 +67,6 @@ export default function Invoices() {
     inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
     inv.clients?.name?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -286,7 +282,7 @@ export default function Invoices() {
                 />
               </TableHead>
               <TableHead>Invoice #</TableHead>
-              <TableHead>Account</TableHead>
+              <TableHead>Client</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Due</TableHead>
               <TableHead>Total</TableHead>
@@ -325,8 +321,8 @@ export default function Invoices() {
                     </Link>
                   </TableCell>
                   <TableCell>{invoice.clients?.name || '-'}</TableCell>
-                  <TableCell>{invoice.issue_date}</TableCell>
-                  <TableCell>{invoice.due_date}</TableCell>
+                  <TableCell>{formatDisplayDate(invoice.issue_date)}</TableCell>
+                  <TableCell>{formatDisplayDate(invoice.due_date)}</TableCell>
                   <TableCell>{formatCurrency(invoice.total)}</TableCell>
                   <TableCell>{formatCurrency(invoice.amount_paid)}</TableCell>
                   <TableCell>

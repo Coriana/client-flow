@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { todayLocal } from '@/lib/dates';
+import { formatDisplayDate, todayLocal } from '@/lib/dates';
 import type { Tables } from '@/integrations/supabase/types';
 
 type JobAsset = Tables<'job_assets'>;
@@ -96,7 +96,7 @@ export function useAssetConflicts(currentJobId?: string): ConflictResult {
         return {
           assetId,
           conflictType: 'blocked',
-          message: `Asset is already rented to "${jobName}" during this period (${rental.rental_start_date} to ${rental.rental_end_date}).`,
+          message: `Asset is already rented to "${jobName}" during this period (${formatDisplayDate(rental.rental_start_date)} to ${formatDisplayDate(rental.rental_end_date)}).`,
           conflictingJobId: jobId,
           conflictingJobName: jobName,
           conflictingJobStatus: jobStatus,

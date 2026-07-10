@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Store, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PermissionGate } from '@/components/PermissionGate';
+import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Vendor = Tables<'vendors'>;
@@ -36,6 +37,7 @@ export default function Vendors() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
 
   const [newVendor, setNewVendor] = useState({
     name: '',
@@ -103,13 +105,6 @@ export default function Vendors() {
     v.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
     v.contact_email?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
 
   const totalCredit = vendors.reduce((sum, v) => sum + (v.credit_balance || 0), 0);
 

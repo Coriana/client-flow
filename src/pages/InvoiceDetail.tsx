@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import RecordPaymentDialog from '@/components/RecordPaymentDialog';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
 import { ArrowLeft, Save, Trash2, Plus, Mail, Download, Lock, Package, Send, DollarSign } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
@@ -45,6 +46,7 @@ export default function InvoiceDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const { formatCurrency } = useBranding();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -393,7 +395,7 @@ export default function InvoiceDetail() {
     setSaving(true);
     
     if (!invoice.client_id || !invoice.invoice_number) {
-      toast({ title: 'Error', description: 'Account and Invoice Number are required', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Client and Invoice Number are required', variant: 'destructive' });
       setSaving(false);
       return;
     }
@@ -547,10 +549,6 @@ export default function InvoiceDetail() {
     setMarkingAsSent(false);
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
-
   async function handleDownloadPdf() {
     toast({ title: 'Generating PDF...', description: 'Please wait' });
     
@@ -672,14 +670,14 @@ export default function InvoiceDetail() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="client">Account *</Label>
+                <Label htmlFor="client">Client *</Label>
                 <Select
                   value={invoice.client_id || ''}
                   onValueChange={(value) => setInvoice({ ...invoice, client_id: value })}
                   disabled={!isEditable}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
+                    <SelectValue placeholder="Select client" />
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map((c) => (
@@ -901,7 +899,7 @@ export default function InvoiceDetail() {
               </div>
               {clientCredit > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Account Credit</span>
+                  <span>Client Credit</span>
                   <span>-{formatCurrency(clientCredit)}</span>
                 </div>
               )}

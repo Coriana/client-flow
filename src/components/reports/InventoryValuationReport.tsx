@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface InventoryItem {
   id: string;
@@ -22,10 +23,7 @@ interface InventoryItem {
 export default function InventoryValuationReport() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InventoryItem[]>([]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   const fetchReport = async () => {
     setLoading(true);

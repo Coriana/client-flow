@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfYear, endOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface Invoice {
   id: string;
@@ -28,10 +29,7 @@ export default function InvoiceSummaryReport() {
   const [startDate, setStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfYear(new Date()), 'yyyy-MM-dd'));
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {

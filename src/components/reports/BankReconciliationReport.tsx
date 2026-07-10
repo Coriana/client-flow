@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface AccountSummary {
   id: string;
@@ -44,10 +45,7 @@ export default function BankReconciliationReport() {
     moneyOut: 0,
     netCashFlow: 0,
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);

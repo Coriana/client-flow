@@ -25,6 +25,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, DollarSign, Receipt, Store, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { formatDisplayDate } from '@/lib/dates';
 import type { Tables } from '@/integrations/supabase/types';
 import MakePaymentDialog from '@/components/MakePaymentDialog';
 import EditPurchaseDialog from '@/components/EditPurchaseDialog';
@@ -49,6 +51,7 @@ export default function Payments() {
   const [editPurchaseOpen, setEditPurchaseOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
 
   const [newVendor, setNewVendor] = useState({
     name: '',
@@ -129,13 +132,6 @@ export default function Payments() {
     p.vendor_name?.toLowerCase().includes(search.toLowerCase()) ||
     p.reference?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
 
   const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalSpent = purchases.reduce((sum, p) => sum + p.total, 0);
@@ -309,7 +305,7 @@ export default function Payments() {
                 ) : (
                   filteredPayments.map((payment) => (
                     <TableRow key={payment.id}>
-                      <TableCell>{payment.date}</TableCell>
+                      <TableCell>{formatDisplayDate(payment.date)}</TableCell>
                       <TableCell>
                         <Link 
                           to={`/invoices/${payment.invoice_id}`}
@@ -360,7 +356,7 @@ export default function Payments() {
                 ) : (
                   filteredPurchases.map((purchase) => (
                     <TableRow key={purchase.id}>
-                      <TableCell>{purchase.date}</TableCell>
+                      <TableCell>{formatDisplayDate(purchase.date)}</TableCell>
                       <TableCell className="font-medium">{purchase.description}</TableCell>
                       <TableCell>{purchase.vendors?.name || purchase.vendor_name || '-'}</TableCell>
                       <TableCell className="capitalize">{purchase.payment_method?.replace('_', ' ') || '-'}</TableCell>

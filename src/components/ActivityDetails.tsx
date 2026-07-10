@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ArrowRight, Minus, Plus } from "lucide-react";
+import { useBranding } from "@/contexts/BrandingContext";
 
 interface ActivityDetailsProps {
   action: string;
@@ -13,8 +14,9 @@ const EXCLUDED_FIELDS = [
   "updated_by", "deleted_at", "password", "key_hash"
 ];
 
-// Fields to format specially
-const formatValue = (key: string, value: unknown): string => {
+// Fields to format specially. `formatCurrency` is passed in from the caller
+// (BrandingContext) since this is a plain function, not a hook.
+const formatValue = (key: string, value: unknown, formatCurrency: (amount: number) => string): string => {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "object") {
@@ -23,12 +25,9 @@ const formatValue = (key: string, value: unknown): string => {
   }
   if (typeof value === "number") {
     // Format currency-like fields
-    if (key.includes("amount") || key.includes("price") || key.includes("cost") || 
+    if (key.includes("amount") || key.includes("price") || key.includes("cost") ||
         key.includes("rate") || key.includes("total") || key.includes("balance")) {
-      return new Intl.NumberFormat("en-AU", { 
-        style: "currency", 
-        currency: "AUD" 
-      }).format(value);
+      return formatCurrency(value);
     }
     return value.toString();
   }
@@ -46,6 +45,7 @@ const formatFieldName = (key: string): string => {
 };
 
 export default function ActivityDetails({ action, oldValues, newValues }: ActivityDetailsProps) {
+  const { formatCurrency } = useBranding();
   const changes = useMemo(() => {
     const oldObj = (typeof oldValues === 'object' && oldValues !== null) ? oldValues as Record<string, unknown> : null;
     const newObj = (typeof newValues === 'object' && newValues !== null) ? newValues as Record<string, unknown> : null;
@@ -122,7 +122,7 @@ export default function ActivityDetails({ action, oldValues, newValues }: Activi
                   {formatFieldName(change.field)}:
                 </span>
                 <span className="text-foreground">
-                  {formatValue(change.field, change.newValue)}
+                  {formatValue(change.field, change.newValue, formatCurrency)}
                 </span>
               </>
             )}
@@ -133,7 +133,7 @@ export default function ActivityDetails({ action, oldValues, newValues }: Activi
                   {formatFieldName(change.field)}:
                 </span>
                 <span className="text-muted-foreground line-through">
-                  {formatValue(change.field, change.oldValue)}
+                  {formatValue(change.field, change.oldValue, formatCurrency)}
                 </span>
               </>
             )}
@@ -144,11 +144,11 @@ export default function ActivityDetails({ action, oldValues, newValues }: Activi
                   {formatFieldName(change.field)}:
                 </span>
                 <span className="text-muted-foreground line-through">
-                  {formatValue(change.field, change.oldValue)}
+                  {formatValue(change.field, change.oldValue, formatCurrency)}
                 </span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                 <span className="text-foreground">
-                  {formatValue(change.field, change.newValue)}
+                  {formatValue(change.field, change.newValue, formatCurrency)}
                 </span>
               </>
             )}

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface JobPL {
   id: string;
@@ -24,10 +25,7 @@ export default function JobProfitLossReport() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<JobPL[]>([]);
   const [totals, setTotals] = useState({ revenue: 0, labour: 0, expenses: 0, purchases: 0, writtenOff: 0, profit: 0 });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);

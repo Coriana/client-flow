@@ -9,6 +9,7 @@ import { format, startOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface VendorSpend {
   id: string | null;
@@ -24,10 +25,7 @@ export default function VendorSpendReport() {
   const [loading, setLoading] = useState(false);
   const [vendors, setVendors] = useState<VendorSpend[]>([]);
   const [totals, setTotals] = useState({ totalSpend: 0, vendorCount: 0, purchaseCount: 0 });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);

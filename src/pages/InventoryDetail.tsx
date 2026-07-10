@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { ArrowLeft, Save, Upload, History, ChevronDown, ChevronUp, Package, ArrowDownCircle, ArrowUpCircle, RefreshCw } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -49,6 +50,7 @@ export default function InventoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const isNew = id === 'new';
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -181,11 +183,6 @@ export default function InventoryDetail() {
     toast({ title: 'Success', description: 'Image uploaded' });
     setUploading(false);
   }
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
 
   const pricesChanged = !isNew && (
     (item.unit_cost || 0) !== originalPrices.unit_cost ||
@@ -434,10 +431,10 @@ export default function InventoryDetail() {
                           </div>
                           <div className="text-right text-sm">
                             {(record.oldCost !== record.newCost) && (
-                              <div>Cost: {formatCurrency(record.oldCost)} → {formatCurrency(record.newCost)}</div>
+                              <div>Cost: {formatCurrency(record.oldCost ?? 0)} → {formatCurrency(record.newCost ?? 0)}</div>
                             )}
                             {(record.oldPrice !== record.newPrice) && (
-                              <div>Price: {formatCurrency(record.oldPrice)} → {formatCurrency(record.newPrice)}</div>
+                              <div>Price: {formatCurrency(record.oldPrice ?? 0)} → {formatCurrency(record.newPrice ?? 0)}</div>
                             )}
                           </div>
                         </>
@@ -470,7 +467,7 @@ export default function InventoryDetail() {
                             </div>
                             {record.unitCost && (
                               <div className="text-muted-foreground text-xs">
-                                @ {formatCurrency(record.unitCost)}/{item.unit}
+                                @ {formatCurrency(record.unitCost ?? 0)}/{item.unit}
                               </div>
                             )}
                           </div>

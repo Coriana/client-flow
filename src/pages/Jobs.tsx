@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Job = Tables<'jobs'> & { clients?: { name: string } | null };
@@ -41,6 +42,7 @@ async function fetchJobs(): Promise<Job[]> {
 
 export default function Jobs() {
   const [search, setSearch] = useState('');
+  const { formatCurrency } = useBranding();
   const { data: jobs = [], isLoading: loading } = useQuery({
     queryKey: ['jobs'],
     queryFn: fetchJobs,
@@ -51,14 +53,6 @@ export default function Jobs() {
     job.job_number.toLowerCase().includes(search.toLowerCase()) ||
     job.clients?.name?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '-';
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
 
   return (
     <div className="space-y-6">
@@ -129,7 +123,7 @@ export default function Jobs() {
                       {job.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatCurrency(job.budget)}</TableCell>
+                  <TableCell>{job.budget ? formatCurrency(job.budget) : '-'}</TableCell>
                 </TableRow>
               ))
             )}

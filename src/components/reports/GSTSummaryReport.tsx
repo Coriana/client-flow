@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format, startOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface InvoiceGST {
   id: string;
@@ -42,10 +43,7 @@ export default function GSTSummaryReport() {
     salesExGST: 0,
     purchasesExGST: 0,
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);

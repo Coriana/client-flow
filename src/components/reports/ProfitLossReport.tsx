@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, startOfYear } from 'date-fns';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface PLData {
   income: number;
@@ -23,10 +24,7 @@ export default function ProfitLossReport() {
   const [incomeByClient, setIncomeByClient] = useState<{ name: string; amount: number }[]>([]);
   const [expensesByCategory, setExpensesByCategory] = useState<{ category: string; amount: number }[]>([]);
   const [purchasesByVendor, setPurchasesByVendor] = useState<{ name: string; amount: number }[]>([]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);

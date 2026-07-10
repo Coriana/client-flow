@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBranding } from "@/contexts/BrandingContext";
+import { formatDisplayDate } from "@/lib/dates";
 import LocationSelector from "@/components/LocationSelector";
 import {
   ArrowLeft,
@@ -78,6 +80,7 @@ export default function AssetDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { formatCurrency } = useBranding();
   const isNew = id === "new";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -397,11 +400,6 @@ export default function AssetDetail() {
     }
     setSaving(false);
   }
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return "$0.00";
-    return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
-  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-AU", {
@@ -855,7 +853,7 @@ export default function AssetDetail() {
                     <span className="mx-2">•</span>
                     {formatCurrency(activeRental.rental_rate)}/{activeRental.billing_frequency}
                     <span className="mx-2">•</span>
-                    Since {activeRental.rental_start_date}
+                    Since {formatDisplayDate(activeRental.rental_start_date)}
                   </div>
                 </div>
               )}
@@ -878,11 +876,11 @@ export default function AssetDetail() {
                         <div className="text-sm text-muted-foreground">
                           {formatCurrency(ja.rental_rate)}/{ja.billing_frequency}
                           <span className="mx-2">•</span>
-                          {ja.rental_start_date} to {ja.rental_end_date || "ongoing"}
+                          {formatDisplayDate(ja.rental_start_date)} to {ja.rental_end_date ? formatDisplayDate(ja.rental_end_date) : "ongoing"}
                           {!ja.is_active && <span className="ml-2 text-amber-600">(Inactive)</span>}
                         </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Next invoice: {ja.next_invoice_date || "N/A"}</div>
+                      <div className="text-sm text-muted-foreground">Next invoice: {ja.next_invoice_date ? formatDisplayDate(ja.next_invoice_date) : "N/A"}</div>
                     </div>
                   ))}
                 </div>

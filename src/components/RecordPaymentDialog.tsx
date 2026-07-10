@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { todayLocal } from '@/lib/dates';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -36,6 +37,7 @@ const emptyPayment = () => ({
 
 export default function RecordPaymentDialog({ open, onOpenChange, defaultInvoiceId, onSuccess }: RecordPaymentDialogProps) {
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const [loading, setLoading] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
@@ -244,13 +246,6 @@ export default function RecordPaymentDialog({ open, onOpenChange, defaultInvoice
     onSuccess?.();
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
-
   const defaultInvoiceInvalid = !loading && !!defaultInvoiceId && !invoices.some((inv) => inv.id === defaultInvoiceId);
   const noPayableInvoices = !loading && invoices.length === 0;
   const showEmptyState = !loading && (defaultInvoiceInvalid || noPayableInvoices);
@@ -413,7 +408,7 @@ export default function RecordPaymentDialog({ open, onOpenChange, defaultInvoice
                 <SelectContent>
                   {bankAccounts.map((acc) => (
                     <SelectItem key={acc.id} value={acc.id}>
-                      {acc.name} (${Number(acc.current_balance).toLocaleString('en-AU', { minimumFractionDigits: 2 })})
+                      {acc.name} ({formatCurrency(Number(acc.current_balance))})
                     </SelectItem>
                   ))}
                 </SelectContent>

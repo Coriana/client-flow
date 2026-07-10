@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, AlertTriangle } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Item = Tables<'items'>;
@@ -33,6 +34,7 @@ async function fetchItems(): Promise<Item[]> {
 
 export default function Inventory() {
   const [search, setSearch] = useState('');
+  const { formatCurrency } = useBranding();
   const { data: items = [], isLoading: loading } = useQuery({
     queryKey: ['inventory'],
     queryFn: fetchItems,
@@ -47,14 +49,6 @@ export default function Inventory() {
   const lowStockItems = items.filter(item => 
     (item.current_stock || 0) <= (item.reorder_level || 0) && item.is_active
   );
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
 
   return (
     <div className="space-y-6">
@@ -150,8 +144,8 @@ export default function Inventory() {
                       </Link>
                     </TableCell>
                     <TableCell>{item.category || '-'}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_cost)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.sales_price)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unit_cost ?? 0)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.sales_price ?? 0)}</TableCell>
                     <TableCell className="text-right">
                       <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
                         {item.current_stock}

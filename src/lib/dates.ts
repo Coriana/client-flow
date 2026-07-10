@@ -35,3 +35,9 @@ export function addDays(d: Date, days: number): Date {
   result.setDate(result.getDate() + days);
   return result;
 }
+
+/** Human-readable date for display (localized), from a YYYY-MM-DD string. */
+export function formatDisplayDate(s: string | null | undefined): string {
+  if (!s) return '-';
+  return parseDateOnly(s.slice(0, 10)).toLocaleDateString();
+}

@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Edit, CreditCard, Package, Receipt, AlertTriangle, Users, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import LocationSelector from '@/components/LocationSelector';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -52,6 +53,7 @@ export default function VendorDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
 
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [contacts, setContacts] = useState<VendorContact[]>([]);
@@ -294,13 +296,6 @@ export default function VendorDetail() {
       fetchData();
     }
   }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-AU');
