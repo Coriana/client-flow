@@ -88,7 +88,7 @@ export default function ClientDetail() {
       .single();
     
     if (error) {
-      toast({ title: 'Error', description: 'Account not found', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Client not found', variant: 'destructive' });
       navigate('/clients');
     } else {
       setClient(data);
@@ -126,7 +126,7 @@ export default function ClientDetail() {
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Success', description: 'Account created' });
+        toast({ title: 'Success', description: 'Client created' });
         navigate(`/clients/${data.id}`);
       }
     } else {
@@ -138,7 +138,7 @@ export default function ClientDetail() {
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Success', description: 'Account updated' });
+        toast({ title: 'Success', description: 'Client updated' });
       }
     }
     setSaving(false);
@@ -146,18 +146,18 @@ export default function ClientDetail() {
 
   async function handleDelete() {
     if (!(await confirm({
-      title: 'Delete this account?',
-      description: 'Are you sure you want to delete this account?',
+      title: 'Delete this client?',
+      description: 'Are you sure you want to delete this client?',
       confirmLabel: 'Delete',
       destructive: true,
     }))) return;
 
     const { error } = await supabase.from('clients').delete().eq('id', id);
-    
+
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Success', description: 'Account deleted' });
+      toast({ title: 'Success', description: 'Client deleted' });
       navigate('/clients');
     }
   }
@@ -176,7 +176,7 @@ export default function ClientDetail() {
         </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">
-            {isNew ? 'New Account' : client.name}
+            {isNew ? 'New Client' : client.name}
           </h1>
         </div>
         <div className="flex gap-2">
@@ -286,7 +286,7 @@ export default function ClientDetail() {
                   </p>
                 ) : (
                   <p className="text-muted-foreground">
-                    Save the account first, then add contacts in the Contacts tab.
+                    Save the client first, then add contacts in the Contacts tab.
                   </p>
                 )}
                 <div className="border-t pt-4 space-y-4">
@@ -336,7 +336,7 @@ export default function ClientDetail() {
                   value={client.notes || ''}
                   onChange={(e) => setClient({ ...client, notes: e.target.value })}
                   rows={4}
-                  placeholder="Internal notes about this account..."
+                  placeholder="Internal notes about this client..."
                 />
               </CardContent>
             </Card>
@@ -353,7 +353,7 @@ export default function ClientDetail() {
           <Card>
             <CardContent className="pt-6">
               {jobs.length === 0 ? (
-                <p className="text-muted-foreground">No jobs for this account yet</p>
+                <p className="text-muted-foreground">No jobs for this client yet</p>
               ) : (
                 <div className="space-y-2">
                   {jobs.map((job) => (
@@ -376,7 +376,7 @@ export default function ClientDetail() {
           <Card>
             <CardContent className="pt-6">
               {invoices.length === 0 ? (
-                <p className="text-muted-foreground">No invoices for this account yet</p>
+                <p className="text-muted-foreground">No invoices for this client yet</p>
               ) : (
                 <div className="space-y-2">
                   {invoices.map((inv) => (

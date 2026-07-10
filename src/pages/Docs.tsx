@@ -58,8 +58,8 @@ const docSections: DocSection[] = [
         content: `Clients are the foundation of your workflow.
 
 **To add a client:**
-1. Go to **Accounts** in the sidebar
-2. Click **New Account**
+1. Go to **Clients** in the sidebar
+2. Click **New Client**
 3. Fill in the client details:
    - Business name (required)
    - Trading name (if different)
@@ -128,7 +128,7 @@ const docSections: DocSection[] = [
     articles: [
       {
         id: 'clients',
-        title: 'Clients & Accounts',
+        title: 'Clients',
         content: `Manage all your client relationships in one place.
 
 **Client Management:**

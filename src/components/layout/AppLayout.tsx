@@ -39,7 +39,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Accounts', href: '/clients', icon: Users, resource: 'clients' },
+  { name: 'Clients', href: '/clients', icon: Users, resource: 'clients' },
   { name: 'Jobs', href: '/jobs', icon: Briefcase, resource: 'jobs' },
   { name: 'Invoices', href: '/invoices', icon: FileText, resource: 'invoices' },
   { name: 'Payments', href: '/payments', icon: CreditCard, resource: 'payments' },

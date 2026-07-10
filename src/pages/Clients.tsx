@@ -67,14 +67,14 @@ export default function Clients() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Accounts</h1>
-          <p className="text-muted-foreground">Manage your account relationships</p>
+          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+          <p className="text-muted-foreground">Manage your client relationships</p>
         </div>
         <PermissionGate resource="clients" action="write">
           <Button asChild>
             <Link to="/clients/new">
               <Plus className="h-4 w-4 mr-2" />
-              New Account
+              New Client
             </Link>
           </Button>
         </PermissionGate>
@@ -83,8 +83,8 @@ export default function Clients() {
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search accounts..." 
+          <Input
+            placeholder="Search clients..."
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -113,7 +113,7 @@ export default function Clients() {
             ) : filteredClients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No accounts found
+                  No clients found
                 </TableCell>
               </TableRow>
             ) : (
