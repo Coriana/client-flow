@@ -117,7 +117,7 @@ const ENTITY_TYPES = [
 ];
 
 async function fetchDashboardData(): Promise<DashboardData> {
-  // Fetch outstanding invoices with client info
+  // Fetch outstanding invoices with client info (display list — capped at 10)
   const { data: invoices } = await supabase
     .from('invoices')
     .select('id, invoice_number, total, amount_paid, status, due_date, clients(name)')
@@ -125,7 +125,19 @@ async function fetchDashboardData(): Promise<DashboardData> {
     .order('due_date', { ascending: true })
     .limit(10);
 
-  const outstandingAmount = invoices?.reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0) || 0;
+  // Fetch the accurate outstanding invoice count (unlimited, for the stat card)
+  const { count: outstandingInvoiceCount } = await supabase
+    .from('invoices')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['sent', 'partially_paid', 'overdue']);
+
+  // Fetch all outstanding invoices (narrow projection, unlimited) to compute the accurate total
+  const { data: allOutstandingInvoices } = await supabase
+    .from('invoices')
+    .select('total, amount_paid')
+    .in('status', ['sent', 'partially_paid', 'overdue']);
+
+  const outstandingAmount = allOutstandingInvoices?.reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0) || 0;
 
   // Fetch cash collected this month
   const startOfMonth = new Date();
@@ -139,7 +151,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
 
   const cashCollected = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
-  // Fetch open issues with client info
+  // Fetch open issues with client info (display list — capped at 10)
   const { data: issues } = await supabase
     .from('issues')
     .select('id, title, severity, status, created_at, clients(name)')
@@ -147,6 +159,12 @@ async function fetchDashboardData(): Promise<DashboardData> {
     .order('severity', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(10);
+
+  // Fetch the accurate open issues count (unlimited, for the stat card)
+  const { count: openIssuesCount } = await supabase
+    .from('issues')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['open', 'in_progress']);
 
   // Fetch active jobs count
   const { count: jobCount } = await supabase
@@ -221,10 +239,10 @@ async function fetchDashboardData(): Promise<DashboardData> {
 
   return {
     stats: {
-      outstandingInvoices: invoices?.length || 0,
+      outstandingInvoices: outstandingInvoiceCount || 0,
       outstandingAmount,
       cashCollectedThisMonth: cashCollected,
-      openIssues: issues?.length || 0,
+      openIssues: openIssuesCount || 0,
       activeJobs: jobCount || 0,
       lowStockItems: lowStock.length,
       totalBankBalance,
