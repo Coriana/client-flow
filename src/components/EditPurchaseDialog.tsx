@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, X, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { todayLocal } from '@/lib/dates';
 import { uuid } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -67,7 +68,7 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
   const [defaultGstRate, setDefaultGstRate] = useState(10);
   
   const [editData, setEditData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     vendor_id: '',
     vendor_name: '',
     description: '',

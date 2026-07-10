@@ -36,6 +36,8 @@ export default function ClientDetail() {
     payment_terms: 30,
     notes: '',
     is_active: true,
+    default_billable_time: true,
+    default_billable_expenses: true,
   });
   const [jobs, setJobs] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -309,7 +311,7 @@ export default function ClientDetail() {
                   <div className="flex items-center gap-2">
                     <Switch
                       id="default_billable_expenses"
-                      checked={(client as any).default_billable_expenses ?? false}
+                      checked={(client as any).default_billable_expenses ?? true}
                       onCheckedChange={(checked) => setClient({ ...client, default_billable_expenses: checked } as any)}
                     />
                     <Label htmlFor="default_billable_expenses">Expenses Billable by Default</Label>

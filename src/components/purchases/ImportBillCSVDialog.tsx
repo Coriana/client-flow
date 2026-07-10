@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, ArrowLeft, ArrowRight, Check, AlertCircle, Bookmark, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { todayLocal } from '@/lib/dates';
 
 interface ImportBillCSVDialogProps {
   open: boolean;
@@ -398,7 +399,7 @@ export default function ImportBillCSVDialog({
           },
           body: JSON.stringify({ 
             save_mappings: true,
-            date: new Date().toISOString().split('T')[0]
+            date: todayLocal()
           }),
         }
       );

@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSetupComplete } from '@/hooks/useSetupComplete';
 import { useBranding } from '@/contexts/BrandingContext';
 import { SetupWizard } from '@/components/setup/SetupWizard';
+import { formatDateOnly } from '@/lib/dates';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   DollarSign, 
@@ -134,7 +135,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
   const { data: payments } = await supabase
     .from('payments')
     .select('amount')
-    .gte('date', startOfMonth.toISOString().split('T')[0]);
+    .gte('date', formatDateOnly(startOfMonth));
 
   const cashCollected = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 

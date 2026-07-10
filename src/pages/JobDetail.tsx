@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
 import { ArrowLeft, Save, Trash2, Plus, X, FileText, Pencil, AlertTriangle, Ban, Package, History } from 'lucide-react';
 import { useAssetConflicts } from '@/hooks/useAssetConflicts';
 import JobHistory from '@/components/JobHistory';
@@ -94,14 +95,14 @@ export default function JobDetail() {
   });
   
   const [newTime, setNewTime] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     hours: '',
     description: '',
     is_billable: true, // Will be updated from settings
   });
-  
+
   const [newExpense, setNewExpense] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     amount: '',
     description: '',
     category: '',
@@ -112,7 +113,7 @@ export default function JobDetail() {
 
   const [newJobAsset, setNewJobAsset] = useState({
     asset_id: '',
-    rental_start_date: new Date().toISOString().split('T')[0],
+    rental_start_date: todayLocal(),
     rental_end_date: '',
     billing_frequency: 'monthly',
     billing_day: 1,
@@ -338,7 +339,7 @@ export default function JobDetail() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Time entry added' });
-      setNewTime({ date: new Date().toISOString().split('T')[0], hours: '', description: '', is_billable: billableDefaults.time });
+      setNewTime({ date: todayLocal(), hours: '', description: '', is_billable: billableDefaults.time });
       setShowTimeForm(false);
       fetchRelatedData();
     }
@@ -364,7 +365,7 @@ export default function JobDetail() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Expense added' });
-      setNewExpense({ date: new Date().toISOString().split('T')[0], amount: '', description: '', category: '', is_billable: billableDefaults.expenses });
+      setNewExpense({ date: todayLocal(), amount: '', description: '', category: '', is_billable: billableDefaults.expenses });
       setShowExpenseForm(false);
       fetchRelatedData();
     }
@@ -407,7 +408,7 @@ export default function JobDetail() {
     }
 
     // Calculate next invoice date based on start date and billing day
-    const startDate = new Date(newJobAsset.rental_start_date);
+    const startDate = parseDateOnly(newJobAsset.rental_start_date);
     let nextInvoiceDate = new Date(startDate);
     nextInvoiceDate.setDate(newJobAsset.billing_day);
     if (nextInvoiceDate <= startDate) {
@@ -424,7 +425,7 @@ export default function JobDetail() {
       rental_rate: parseFloat(newJobAsset.rental_rate),
       invoice_lead_days: newJobAsset.invoice_lead_days,
       billing_in_advance: newJobAsset.billing_in_advance,
-      next_invoice_date: nextInvoiceDate.toISOString().split('T')[0],
+      next_invoice_date: formatDateOnly(nextInvoiceDate),
       is_active: true,
     });
 
@@ -439,7 +440,7 @@ export default function JobDetail() {
       toast({ title: 'Success', description: 'Asset rental added' });
       setNewJobAsset({
         asset_id: '',
-        rental_start_date: new Date().toISOString().split('T')[0],
+        rental_start_date: todayLocal(),
         rental_end_date: '',
         billing_frequency: 'monthly',
         billing_day: 1,
@@ -731,8 +732,7 @@ export default function JobDetail() {
     const taxTotal = subtotal * (taxRate / 100);
     const total = subtotal + taxTotal;
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    const dueDate = addDays(new Date(), 30);
 
     const { data: invoice, error } = await supabase
       .from('invoices')
@@ -744,7 +744,7 @@ export default function JobDetail() {
         subtotal,
         tax_total: taxTotal,
         total,
-        due_date: dueDate.toISOString().split('T')[0],
+        due_date: formatDateOnly(dueDate),
         created_by: user?.id,
       })
       .select()

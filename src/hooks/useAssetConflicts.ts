@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { todayLocal } from '@/lib/dates';
 import type { Tables } from '@/integrations/supabase/types';
 
 type JobAsset = Tables<'job_assets'>;
@@ -24,7 +25,7 @@ export function useAssetConflicts(currentJobId?: string): ConflictResult {
 
   useEffect(() => {
     async function fetchRentals() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocal();
       
       // Fetch all rentals that either:
       // 1. Have no end date (ongoing), OR

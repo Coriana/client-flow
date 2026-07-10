@@ -64,7 +64,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     tradingName: { name: '', bankAccountName: '', bsb: '', accountNumber: '', paypalEmail: '' },
     taxRate: { name: 'GST', rate: 10 },
     bankAccount: { name: '', bankName: '', bsb: '', accountNumber: '', openingBalance: 0, openingBalanceDate: '' },
-    invoice: { prefix: 'INV', nextNumber: 1, paymentTerms: 30 },
+    invoice: { prefix: 'INV-', nextNumber: 1, paymentTerms: 30 },
   });
 
   const progress = (currentStep / (STEPS.length + 1)) * 100;
