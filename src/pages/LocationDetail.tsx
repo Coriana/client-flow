@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Trash2, MapPin, Building2, Users, HardDrive, Briefcase, Plus, X } from 'lucide-react';
 
@@ -43,6 +44,7 @@ export default function LocationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const isNew = id === 'new';
 
   const [loading, setLoading] = useState(!isNew);
@@ -181,7 +183,12 @@ export default function LocationDetail() {
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this location?')) return;
+    if (!(await confirm({
+      title: 'Delete this location?',
+      description: 'Are you sure you want to delete this location?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
 
     const { error } = await supabase.from('locations').delete().eq('id', id);
 

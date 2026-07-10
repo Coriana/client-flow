@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import ClientContacts from '@/components/ClientContacts';
 import LocationSelector from '@/components/LocationSelector';
+import { useConfirm } from '@/components/ConfirmDialog';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Client = Tables<'clients'>;
@@ -20,6 +21,7 @@ export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -143,8 +145,13 @@ export default function ClientDetail() {
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this account?')) return;
-    
+    if (!(await confirm({
+      title: 'Delete this account?',
+      description: 'Are you sure you want to delete this account?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
+
     const { error } = await supabase.from('clients').delete().eq('id', id);
     
     if (error) {

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Trash2, Star, Pencil, X, Check, User, History } from 'lucide-react';
@@ -38,6 +39,7 @@ interface ClientContactsProps {
 export default function ClientContacts({ clientId }: ClientContactsProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [history, setHistory] = useState<ContactHistoryEvent[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -141,7 +143,12 @@ export default function ClientContacts({ clientId }: ClientContactsProps) {
   }
 
   async function handleDeleteContact(contact: Contact) {
-    if (!confirm(`Remove ${contact.name} from contacts?`)) return;
+    if (!(await confirm({
+      title: 'Remove this contact?',
+      description: `Remove ${contact.name} from contacts?`,
+      confirmLabel: 'Remove',
+      destructive: true,
+    }))) return;
 
     const { error } = await supabase.from('client_contacts').update({ is_active: false }).eq('id', contact.id);
 

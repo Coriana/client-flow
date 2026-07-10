@@ -29,17 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { uuid } from '@/lib/utils';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -106,6 +96,7 @@ export default function BankAccountDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [account, setAccount] = useState<BankAccount | null>(null);
@@ -227,6 +218,12 @@ export default function BankAccountDetail() {
 
   const handleDeleteAccount = async () => {
     if (!id) return;
+    if (!(await confirm({
+      title: 'Delete bank account?',
+      description: 'This will permanently delete this bank account and all its transactions.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
     try {
       const { error } = await supabase.from('bank_accounts').delete().eq('id', id);
       if (error) throw error;
@@ -477,6 +474,12 @@ export default function BankAccountDetail() {
   };
 
   const handleDeleteTransaction = async (transactionId: string) => {
+    if (!(await confirm({
+      title: 'Delete transaction?',
+      description: 'This will permanently delete this transaction.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
     try {
       const { error } = await supabase.from('bank_transactions').delete().eq('id', transactionId);
       if (error) throw error;
@@ -700,27 +703,14 @@ export default function BankAccountDetail() {
                         </TableCell>
                         <TableCell>
                           <PermissionGate resource="banking" action="write">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete transaction?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete this transaction.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteTransaction(transaction.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDeleteTransaction(transaction.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </PermissionGate>
                         </TableCell>
                       </TableRow>
@@ -785,26 +775,10 @@ export default function BankAccountDetail() {
               <Button onClick={handleUpdateAccount} disabled={saving} className="flex-1">
                 {saving ? 'Saving...' : 'Save Changes'}
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete bank account?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete this bank account and all its transactions.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAccount}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button variant="destructive" onClick={handleDeleteAccount}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
             </div>
           </div>
         </DialogContent>

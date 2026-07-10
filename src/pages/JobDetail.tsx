@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
@@ -42,6 +43,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -295,12 +297,22 @@ export default function JobDetail() {
     
     if (invoiceCount && invoiceCount > 0) {
       const confirmMsg = `This job has ${invoiceCount} invoice(s) attached. Deleting will unlink these invoices from the job. Continue?`;
-      if (!confirm(confirmMsg)) return;
-      
+      if (!(await confirm({
+        title: 'Delete this job?',
+        description: confirmMsg,
+        confirmLabel: 'Delete',
+        destructive: true,
+      }))) return;
+
       // Unlink invoices from this job (set job_id to null)
       await supabase.from('invoices').update({ job_id: null }).eq('job_id', id);
     } else {
-      if (!confirm('Are you sure you want to delete this job?')) return;
+      if (!(await confirm({
+        title: 'Delete this job?',
+        description: 'Are you sure you want to delete this job?',
+        confirmLabel: 'Delete',
+        destructive: true,
+      }))) return;
     }
     
     // Also delete related timesheets, expenses, and job_assets
@@ -401,7 +413,11 @@ export default function JobDetail() {
         return;
       } else if (conflict.conflictType === 'warning') {
         // Show warning but allow to proceed after confirmation
-        if (!confirm(`Warning: ${conflict.message}\n\nDo you want to proceed anyway?`)) {
+        if (!(await confirm({
+          title: 'Asset availability warning',
+          description: `${conflict.message}\n\nDo you want to proceed anyway?`,
+          confirmLabel: 'Proceed Anyway',
+        }))) {
           return;
         }
       }
@@ -532,7 +548,12 @@ export default function JobDetail() {
   }
 
   async function handleDeleteJobAsset(jaId: string) {
-    if (!confirm('Remove this asset from the job?')) return;
+    if (!(await confirm({
+      title: 'Remove this asset?',
+      description: 'Remove this asset from the job?',
+      confirmLabel: 'Remove',
+      destructive: true,
+    }))) return;
     
     // Get the asset_id before deleting
     const jobAssetToDelete = jobAssets.find(ja => ja.id === jaId);
@@ -637,7 +658,11 @@ export default function JobDetail() {
 
     // Check stock level
     if ((selectedItem.current_stock || 0) < quantity) {
-      if (!confirm(`Warning: Only ${selectedItem.current_stock} units in stock. This will create negative stock. Continue?`)) {
+      if (!(await confirm({
+        title: 'Insufficient stock',
+        description: `Only ${selectedItem.current_stock} units in stock. This will create negative stock. Continue?`,
+        confirmLabel: 'Continue',
+      }))) {
         return;
       }
     }
@@ -676,7 +701,12 @@ export default function JobDetail() {
   }
 
   async function handleDeleteInventoryMovement(movementId: string, itemId: string, quantity: number) {
-    if (!confirm('Remove this inventory usage? Stock will be returned.')) return;
+    if (!(await confirm({
+      title: 'Remove this inventory usage?',
+      description: 'Stock will be returned.',
+      confirmLabel: 'Remove',
+      destructive: true,
+    }))) return;
 
     // Get the item to restore stock
     const item = allItems.find(i => i.id === itemId);

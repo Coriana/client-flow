@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import RecordPaymentDialog from '@/components/RecordPaymentDialog';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
 import { ArrowLeft, Save, Trash2, Plus, Mail, Download, Lock, Package, Send, DollarSign } from 'lucide-react';
@@ -43,6 +44,7 @@ export default function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -511,8 +513,13 @@ export default function InvoiceDetail() {
       toast({ title: 'Error', description: 'Only draft invoices can be deleted. Use Void for sent invoices.', variant: 'destructive' });
       return;
     }
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
-    
+    if (!(await confirm({
+      title: 'Delete this invoice?',
+      description: 'Are you sure you want to delete this invoice?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
+
     await supabase.from('invoice_lines').delete().eq('invoice_id', id);
     const { error } = await supabase.from('invoices').delete().eq('id', id);
     
