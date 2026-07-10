@@ -34,6 +34,7 @@ const tableResourceMap: Record<string, string> = {
   issue_items: 'issues',
   issue_jobs: 'issues',
   issue_bookmarks: 'issues',
+  issue_bookmark_links: 'issues',
   kb_articles: 'kb',
   kb_attachments: 'kb',
   kb_article_issues: 'kb',
@@ -70,7 +71,16 @@ type RelationConfig = {
 type SelectRelation = {
   relationName: string;
   alias?: string;
+  children: SelectRelation[];
 };
+
+/**
+ * Thrown when a select references a relation name that has no entry in
+ * `relationMappings`, or a belongsTo entry that is missing its `fk`. Caught
+ * in the GET route handlers and turned into a 400 so a typo'd or
+ * unmapped relation fails loudly instead of silently dropping data.
+ */
+class InvalidRelationError extends Error {}
 
 type QueryParamValue = string | ParsedQs | (string | ParsedQs)[] | undefined;
 
@@ -88,6 +98,12 @@ const relationMappings: Record<string, Record<string, RelationConfig>> = {
     clients: { table: 'clients', fk: 'client_id' },
     jobs: { table: 'jobs', fk: 'job_id' },
   },
+  invoice_lines: {
+    invoices: { table: 'invoices', fk: 'invoice_id' },
+  },
+  payments: {
+    invoices: { table: 'invoices', fk: 'invoice_id' },
+  },
   purchases: {
     vendors: { table: 'vendors', fk: 'vendor_id' },
   },
@@ -98,6 +114,7 @@ const relationMappings: Record<string, Record<string, RelationConfig>> = {
   },
   expenses: {
     jobs: { table: 'jobs', fk: 'job_id' },
+    vendors: { table: 'vendors', fk: 'vendor_id' },
   },
   assets: {
     assigned_client: { table: 'clients', fk: 'assigned_client_id' },
@@ -107,8 +124,39 @@ const relationMappings: Record<string, Record<string, RelationConfig>> = {
     jobs: { table: 'jobs', fk: 'job_id' },
     assets: { table: 'assets', fk: 'asset_id' },
   },
+  job_assignments: {
+    jobs: { table: 'jobs', fk: 'job_id' },
+  },
+  inventory_movements: {
+    items: { table: 'items', fk: 'item_id' },
+    jobs: { table: 'jobs', fk: 'job_id' },
+  },
+  issues: {
+    clients: { table: 'clients', fk: 'client_id' },
+    purchases: { table: 'purchases', fk: 'purchase_id' },
+  },
+  issue_jobs: {
+    jobs: { table: 'jobs', fk: 'job_id' },
+  },
+  issue_assets: {
+    assets: { table: 'assets', fk: 'asset_id' },
+  },
+  issue_items: {
+    items: { table: 'items', fk: 'item_id' },
+  },
+  issue_bookmarks: {
+    issues: { table: 'issues', fk: 'issue_id' },
+  },
+  issue_bookmark_links: {
+    issue_bookmarks: { table: 'issue_bookmarks', fk: 'target_bookmark_id' },
+  },
+  kb_article_issues: {
+    kb_articles: { table: 'kb_articles', fk: 'article_id' },
+    issues: { table: 'issues', fk: 'issue_id' },
+  },
   user_roles: {
     role_id: { table: 'roles', fk: 'role_id' },
+    roles: { table: 'roles', fk: 'role_id' },
   },
   role_permissions: {
     resource_id: { table: 'resources', fk: 'resource_id' },
@@ -165,9 +213,20 @@ function parseSelect(select: string): { fields: string[]; relations: SelectRelat
         ? before.split(':', 2).map(part => part.trim())
         : [undefined, before];
 
+      // Recurse into the parenthesized inner content so nested relations
+      // (e.g. `invoices(invoice_number, clients(name))`) aren't discarded.
+      // Column lists inside `inner` are intentionally ignored here (see
+      // attachRelations, which always fetches related rows with SELECT *);
+      // only the nested relation names are kept. Parsing itself is not
+      // depth-limited - splitSelect's paren-depth tracking already bounds
+      // recursion to the literal nesting present in the (finite) query
+      // string. attachRelations is what enforces the business depth cap.
+      const { relations: children } = parseSelect(inner);
+
       relations.push({
         relationName: relationPart,
         alias: aliasPart,
+        children,
       });
       continue;
     }
@@ -391,13 +450,23 @@ function buildWhereClause(query: Record<string, any>, tableName: string): { clau
   };
 }
 
-async function attachRelations(table: string, rows: any[], relations: SelectRelation[]): Promise<void> {
+// Business cap on relation nesting depth (1 = the relation directly on the
+// queried table, 2 = a relation nested inside that, 3 = one level further).
+// parseSelect will happily parse deeper than this (see comment there), but
+// attachRelations stops issuing queries/attaching data past this depth so a
+// pathologically deep `select=` can't fan out into unbounded DB round-trips.
+const MAX_RELATION_DEPTH = 3;
+
+async function attachRelations(table: string, rows: any[], relations: SelectRelation[], depth = 1): Promise<void> {
   if (!rows.length || !relations.length) return;
+  if (depth > MAX_RELATION_DEPTH) return;
   const tableRelations = relationMappings[table] || {};
 
   for (const rel of relations) {
     const config = tableRelations[rel.relationName];
-    if (!config) continue;
+    if (!config) {
+      throw new InvalidRelationError(`Unknown relation '${rel.relationName}' for table '${table}'`);
+    }
     const alias = rel.alias || rel.relationName;
 
     if (config.direction === 'hasMany') {
@@ -417,8 +486,9 @@ async function attachRelations(table: string, rows: any[], relations: SelectRela
 
       if (result.error) continue;
 
+      const relatedRows = result.data || [];
       const grouped = new Map<string | number, any[]>();
-      (result.data || []).forEach(item => {
+      relatedRows.forEach(item => {
         const key = item[remoteKey];
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key)!.push(item);
@@ -428,9 +498,18 @@ async function attachRelations(table: string, rows: any[], relations: SelectRela
         const key = row[parentKey];
         row[alias] = grouped.get(key) || [];
       });
+
+      // Recurse over the flattened (ungrouped) related rows - each row
+      // object is shared by reference with the arrays attached above, so
+      // mutating it here is visible on every parent row it was grouped into.
+      if (rel.children.length) {
+        await attachRelations(config.table, relatedRows, rel.children, depth + 1);
+      }
     } else {
       const fk = config.fk;
-      if (!fk) continue;
+      if (!fk) {
+        throw new InvalidRelationError(`Relation '${rel.relationName}' for table '${table}' is missing an fk configuration`);
+      }
       const ids = Array.from(new Set(rows.map(row => row[fk]).filter(Boolean)));
       if (!ids.length) {
         rows.forEach(row => (row[alias] = null));
@@ -446,6 +525,14 @@ async function attachRelations(table: string, rows: any[], relations: SelectRela
       rows.forEach(row => {
         row[alias] = map.get(row[fk]) || null;
       });
+
+      // Recurse over the unique attached objects (one fetch/attach per
+      // distinct related row, not per parent row) - same reference-sharing
+      // reasoning as the hasMany branch above.
+      if (rel.children.length) {
+        const uniqueAttached = Array.from(map.values());
+        await attachRelations(config.table, uniqueAttached, rel.children, depth + 1);
+      }
     }
   }
 }
@@ -552,7 +639,15 @@ router.get('/:table', (req: AuthRequest, res: Response) => {
     }
 
     const data = result.data || [];
-    await attachRelations(tableParam, data, relations);
+    try {
+      await attachRelations(tableParam, data, relations);
+    } catch (err) {
+      if (err instanceof InvalidRelationError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
 
     if (normalizeQueryValue(count) === 'exact') {
       const countResult = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM ${tableParam} ${clause}`, params);
@@ -593,7 +688,15 @@ router.get('/:table/:id', (req: AuthRequest, res: Response) => {
       return;
     }
 
-    await attachRelations(tableParam, [result.data], relations);
+    try {
+      await attachRelations(tableParam, [result.data], relations);
+    } catch (err) {
+      if (err instanceof InvalidRelationError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
     res.json(result.data);
   });
 });
