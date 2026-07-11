@@ -69,7 +69,7 @@ const docSections: DocSection[] = [
 4. Click **Save**
 
 **Client features:**
-- Add multiple contacts per client
+- Add contacts, or link an existing person if they've moved from another client or vendor
 - Set custom payment terms
 - View all jobs and invoices for each client
 - Track client history and notes`,
@@ -138,7 +138,7 @@ const docSections: DocSection[] = [
 
 **Client Details Page:**
 - **Overview** - Contact info, ABN, payment terms
-- **Contacts** - Multiple people per organization
+- **Contacts** - People affiliated with this client. Contacts can move between clients and vendors over time, and ending an affiliation keeps their history — find everyone under **Contacts** in the sidebar.
 - **Jobs** - All work for this client
 - **Invoices** - Billing history
 - **History** - Audit trail of changes

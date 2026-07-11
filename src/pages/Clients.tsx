@@ -18,7 +18,8 @@ import { PermissionGate } from '@/components/PermissionGate';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Client = Tables<'clients'>;
-type Contact = Tables<'client_contacts'>;
+type Contact = Tables<'contacts'>;
+type ContactAffiliation = Tables<'contact_affiliations'> & { contacts: Contact | null };
 
 type ClientWithContact = Client & { primary_contact?: Contact | null };
 
@@ -33,15 +34,17 @@ async function fetchClients(): Promise<ClientWithContact[]> {
     return [];
   }
 
-  // Fetch primary contacts for all clients
-  const { data: contacts } = await supabase
-    .from('client_contacts')
-    .select('*')
+  // Fetch primary contacts for all clients in one query, keyed by client_id.
+  const { data: affiliations } = await supabase
+    .from('contact_affiliations')
+    .select('*, contacts(*)')
     .eq('is_primary', true)
-    .eq('is_active', true);
+    .is('end_date', null);
 
   const contactMap = new Map<string, Contact>();
-  contacts?.forEach(c => contactMap.set(c.client_id, c));
+  (affiliations as ContactAffiliation[] | null)?.forEach(a => {
+    if (a.client_id && a.contacts) contactMap.set(a.client_id, a.contacts);
+  });
 
   return (clientsData || []).map(client => ({
     ...client,

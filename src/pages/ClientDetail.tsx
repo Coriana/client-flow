@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Trash2 } from 'lucide-react';
-import ClientContacts from '@/components/ClientContacts';
+import AffiliatedContacts from '@/components/AffiliatedContacts';
 import LocationSelector from '@/components/LocationSelector';
 import { useConfirm } from '@/components/ConfirmDialog';
 import type { Tables } from '@/integrations/supabase/types';
@@ -70,14 +70,14 @@ export default function ClientDetail() {
 
   async function fetchPrimaryContact() {
     const { data } = await supabase
-      .from('client_contacts')
-      .select('*')
+      .from('contact_affiliations')
+      .select('*, contacts(*)')
       .eq('client_id', id)
       .eq('is_primary', true)
-      .eq('is_active', true)
-      .single();
-    
-    setPrimaryContact(data);
+      .is('end_date', null)
+      .maybeSingle();
+
+    setPrimaryContact((data as any)?.contacts ?? null);
   }
 
   async function fetchClient() {
@@ -345,7 +345,7 @@ export default function ClientDetail() {
 
         {!isNew && (
           <TabsContent value="contacts">
-            <ClientContacts clientId={id!} />
+            <AffiliatedContacts entityType="client" entityId={id!} />
           </TabsContent>
         )}
 

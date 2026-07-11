@@ -50,6 +50,7 @@ const navSections: NavSection[] = [
     label: 'Work',
     items: [
       { name: 'Clients', href: '/clients', icon: Users, resource: 'clients' },
+      { name: 'Contacts', href: '/contacts', icon: User, resource: 'clients' },
       { name: 'Jobs', href: '/jobs', icon: Briefcase, resource: 'jobs' },
       { name: 'Issues', href: '/issues', icon: AlertCircle, resource: 'issues' },
     ],

@@ -21,6 +21,8 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Clients = lazy(() => import("./pages/Clients"));
 const ClientDetail = lazy(() => import("./pages/ClientDetail"));
+const Contacts = lazy(() => import("./pages/Contacts"));
+const ContactDetail = lazy(() => import("./pages/ContactDetail"));
 const Jobs = lazy(() => import("./pages/Jobs"));
 const JobDetail = lazy(() => import("./pages/JobDetail"));
 const Invoices = lazy(() => import("./pages/Invoices"));
@@ -81,6 +83,8 @@ const App = () => (
                     <Route index element={<Dashboard />} />
                     <Route path="clients" element={<Clients />} />
                     <Route path="clients/:id" element={<ClientDetail />} />
+                    <Route path="contacts" element={<Contacts />} />
+                    <Route path="contacts/:id" element={<ContactDetail />} />
                     <Route path="jobs" element={<Jobs />} />
                     <Route path="jobs/:id" element={<JobDetail />} />
                     <Route path="invoices" element={<Invoices />} />

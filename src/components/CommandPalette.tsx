@@ -18,6 +18,7 @@ import {
   Key,
   HelpCircle,
   History,
+  Contact,
 } from 'lucide-react';
 import {
   CommandDialog,
@@ -88,6 +89,11 @@ interface ClientHit {
   id: string;
   name: string;
   trading_name: string | null;
+}
+interface ContactHit {
+  id: string;
+  name: string;
+  email: string | null;
 }
 interface JobHit {
   id: string;
@@ -189,6 +195,21 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
         .limit(300);
       if (error) throw error;
       return (data ?? []) as ClientHit[];
+    },
+    enabled: open && canReadClients,
+    staleTime: 60_000,
+  });
+
+  const { data: contacts = [] } = useQuery({
+    queryKey: ['command-palette', 'contacts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, email')
+        .order('created_at', { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data ?? []) as ContactHit[];
     },
     enabled: open && canReadClients,
     staleTime: 60_000,
@@ -402,6 +423,24 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
                 <span>{client.name}</span>
                 {client.trading_name && (
                   <span className="ml-2 text-xs text-muted-foreground">{client.trading_name}</span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {hasQuery && canReadClients && contacts.length > 0 && (
+          <CommandGroup heading="Contacts">
+            {contacts.map(contact => (
+              <CommandItem
+                key={contact.id}
+                value={`contact-${contact.id}-${contact.name}-${contact.email ?? ''}`}
+                onSelect={() => runCommand(() => navigate(`/contacts/${contact.id}`))}
+              >
+                <Contact className="mr-2 h-4 w-4" />
+                <span>{contact.name}</span>
+                {contact.email && (
+                  <span className="ml-2 text-xs text-muted-foreground">{contact.email}</span>
                 )}
               </CommandItem>
             ))}
