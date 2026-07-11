@@ -236,6 +236,95 @@ CREATE INDEX IF NOT EXISTS idx_contact_affiliations_contact ON contact_affiliati
 CREATE INDEX IF NOT EXISTS idx_contact_affiliations_client ON contact_affiliations(client_id);
 CREATE INDEX IF NOT EXISTS idx_contact_affiliations_vendor ON contact_affiliations(vendor_id);
 
+-- Keep clients.contact_name/contact_email/contact_phone and
+-- vendors.contact_name/contact_email/contact_phone (read by invoice-emailing
+-- fallback and the external API) in sync with each org's *current primary*
+-- contact (contact_affiliations.is_primary = 1 AND end_date IS NULL). These
+-- triggers recompute from scratch on every relevant mutation, so every
+-- mutation path (insert, primary/end_date change, delete, or an edit to the
+-- contact's own name/email/phone) converges on the same result: the primary
+-- contact's info, or NULL if the org currently has no primary. Overlapping
+-- affiliations are allowed (a person can be primary at more than one org at
+-- once) - each org's columns are recomputed independently, so there is no
+-- cross-org exclusivity here.
+--
+-- WHERE id = NEW.client_id / OLD.client_id is a deliberate no-op when the
+-- affiliation targets a vendor (client_id NULL): `id = NULL` matches zero
+-- rows, so the clients-branch of these triggers is inert for vendor-side
+-- affiliations, and vice versa for the vendors branch.
+CREATE TRIGGER IF NOT EXISTS trg_contact_affiliations_sync_ai
+AFTER INSERT ON contact_affiliations
+BEGIN
+  UPDATE clients SET
+    contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = NEW.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = NEW.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = NEW.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+  WHERE id = NEW.client_id;
+
+  UPDATE vendors SET
+    contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = NEW.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = NEW.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = NEW.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+  WHERE id = NEW.vendor_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_contact_affiliations_sync_au
+AFTER UPDATE OF is_primary, end_date ON contact_affiliations
+BEGIN
+  UPDATE clients SET
+    contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = NEW.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = NEW.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = NEW.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+  WHERE id = NEW.client_id;
+
+  UPDATE vendors SET
+    contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = NEW.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = NEW.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = NEW.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+  WHERE id = NEW.vendor_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_contact_affiliations_sync_ad
+AFTER DELETE ON contact_affiliations
+BEGIN
+  UPDATE clients SET
+    contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = OLD.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = OLD.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = OLD.client_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+  WHERE id = OLD.client_id;
+
+  UPDATE vendors SET
+    contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = OLD.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = OLD.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+    contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = OLD.vendor_id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+  WHERE id = OLD.vendor_id;
+END;
+
+-- If the primary contact's own name/email/phone changes, propagate to every
+-- client/vendor that currently has them as primary (could be more than one -
+-- overlapping affiliations are allowed, so this is not a single-row update).
+CREATE TRIGGER IF NOT EXISTS trg_contacts_sync_au
+AFTER UPDATE OF name, email, phone ON contacts
+BEGIN
+  UPDATE clients SET
+    contact_name = NEW.name,
+    contact_email = NEW.email,
+    contact_phone = NEW.phone
+  WHERE id IN (
+    SELECT client_id FROM contact_affiliations
+    WHERE contact_id = NEW.id AND is_primary = 1 AND end_date IS NULL AND client_id IS NOT NULL
+  );
+
+  UPDATE vendors SET
+    contact_name = NEW.name,
+    contact_email = NEW.email,
+    contact_phone = NEW.phone
+  WHERE id IN (
+    SELECT vendor_id FROM contact_affiliations
+    WHERE contact_id = NEW.id AND is_primary = 1 AND end_date IS NULL AND vendor_id IS NOT NULL
+  );
+END;
+
 -- Trading Names
 CREATE TABLE IF NOT EXISTS trading_names (
   id TEXT PRIMARY KEY,

@@ -448,6 +448,128 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (contacts backfill from vendor_contacts):', error);
   }
+
+  // Migration: Preserve orphaned free-text contact info by converting it into
+  // the person-centric model. A client/vendor whose inline contact_name was
+  // typed by hand (with no corresponding current primary affiliation) would
+  // otherwise have those columns NULLed by the recompute below, since the new
+  // model treats them as a mirror of the current primary contact. Convert each
+  // such org's inline info into a contacts row (reusing an existing contact
+  // when the normalized name+email already match) plus a current primary
+  // affiliation, so the recompute converges on the same values and nothing is
+  // lost. Idempotent: once the affiliation exists, the org no longer
+  // qualifies as orphaned.
+  try {
+    const datePart = (timestamp: string | null) =>
+      ((timestamp ?? '').split(' ')[0].split('T')[0]) || null;
+
+    for (const entity of ['clients', 'vendors'] as const) {
+      const fkColumn = entity === 'clients' ? 'client_id' : 'vendor_id';
+      const orphans = database.prepare(`
+        SELECT id, contact_name, contact_email, contact_phone, created_at FROM ${entity} o
+        WHERE contact_name IS NOT NULL AND TRIM(contact_name) <> ''
+          AND NOT EXISTS (
+            SELECT 1 FROM contact_affiliations ca
+            WHERE ca.${fkColumn} = o.id AND ca.is_primary = 1 AND ca.end_date IS NULL
+          )
+      `).all() as Array<{
+        id: string;
+        contact_name: string;
+        contact_email: string | null;
+        contact_phone: string | null;
+        created_at: string | null;
+      }>;
+
+      if (orphans.length === 0) continue;
+
+      const findContact = database.prepare(`
+        SELECT id FROM contacts
+        WHERE lower(trim(name)) = lower(trim(?))
+          AND COALESCE(lower(trim(email)), '') = COALESCE(lower(trim(?)), '')
+        LIMIT 1
+      `);
+      const insertContact = database.prepare(
+        'INSERT INTO contacts (id, name, email, phone) VALUES (?, ?, ?, ?)',
+      );
+      const insertAffiliation = database.prepare(`
+        INSERT INTO contact_affiliations (id, contact_id, ${fkColumn}, is_primary, start_date)
+        VALUES (?, ?, ?, 1, ?)
+      `);
+
+      const convertOrphans = database.transaction((rows: typeof orphans) => {
+        for (const row of rows) {
+          const existing = findContact.get(row.contact_name, row.contact_email) as
+            | { id: string }
+            | undefined;
+          let contactId = existing?.id;
+          if (!contactId) {
+            contactId = crypto.randomUUID();
+            insertContact.run(contactId, row.contact_name.trim(), row.contact_email, row.contact_phone);
+          }
+          insertAffiliation.run(crypto.randomUUID(), contactId, row.id, datePart(row.created_at));
+        }
+      });
+
+      convertOrphans(orphans);
+      console.log(
+        `Migration: Converted inline contact info on ${orphans.length} ${entity} row(s) into contacts + primary affiliations`,
+      );
+    }
+  } catch (error) {
+    console.error('Migration error (orphaned inline contact_* conversion):', error);
+  }
+
+  // Migration: Backfill clients.contact_name/contact_email/contact_phone and
+  // vendors.contact_name/contact_email/contact_phone from each org's current
+  // primary contact affiliation (contact_affiliations.is_primary = 1 AND
+  // end_date IS NULL, contact_id -> contacts). Going forward these columns
+  // are kept fresh automatically by the trg_contact_affiliations_sync_* /
+  // trg_contacts_sync_au triggers in schema.sql, but those only fire on new
+  // mutations - rows that predate the triggers (including anything carried
+  // over from the client_contacts/vendor_contacts backfills above, or old
+  // free-text values entered before the person-centric contacts model)
+  // need a one-time recompute so they match the new source of truth.
+  //
+  // Safe to run on every boot: the WHERE clause (comparing each column to
+  // its freshly-computed value with the NULL-safe `IS NOT`) only touches
+  // rows that actually need a change, so after the first real run this is a
+  // 0-row, silent no-op - matching the "only log when it actually runs"
+  // convention used throughout this file.
+  try {
+    const clientsResult = database.prepare(`
+      UPDATE clients SET
+        contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = clients.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+        contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = clients.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+        contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = clients.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+      WHERE
+        contact_name IS NOT (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = clients.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+        OR contact_email IS NOT (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = clients.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+        OR contact_phone IS NOT (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.client_id = clients.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+    `).run();
+    if (clientsResult.changes > 0) {
+      console.log(`Migration: Recomputed contact_name/contact_email/contact_phone for ${clientsResult.changes} client(s) from their primary contact affiliation`);
+    }
+  } catch (error) {
+    console.error('Migration error (clients contact_* backfill from contact_affiliations):', error);
+  }
+
+  try {
+    const vendorsResult = database.prepare(`
+      UPDATE vendors SET
+        contact_name = (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = vendors.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+        contact_email = (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = vendors.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1),
+        contact_phone = (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = vendors.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+      WHERE
+        contact_name IS NOT (SELECT c.name FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = vendors.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+        OR contact_email IS NOT (SELECT c.email FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = vendors.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+        OR contact_phone IS NOT (SELECT c.phone FROM contact_affiliations ca JOIN contacts c ON c.id = ca.contact_id WHERE ca.vendor_id = vendors.id AND ca.is_primary = 1 AND ca.end_date IS NULL LIMIT 1)
+    `).run();
+    if (vendorsResult.changes > 0) {
+      console.log(`Migration: Recomputed contact_name/contact_email/contact_phone for ${vendorsResult.changes} vendor(s) from their primary contact affiliation`);
+    }
+  } catch (error) {
+    console.error('Migration error (vendors contact_* backfill from contact_affiliations):', error);
+  }
 }
 
 export function closeDatabase(): void {
