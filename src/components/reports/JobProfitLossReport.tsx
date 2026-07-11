@@ -3,8 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface JobPL {
   id: string;
@@ -144,6 +151,25 @@ export default function JobProfitLossReport() {
     fetchReport();
   }, []);
 
+  function handleExportCsv() {
+    const headers = ['Job Number', 'Job Name', 'Client', 'Status', 'Revenue', 'Labour', 'Expenses', 'Purchases', 'Written Off', 'Profit', 'Margin'];
+    const rows = jobs.map((job) => [
+      job.job_number,
+      job.name,
+      job.client_name,
+      job.status,
+      round2(job.revenue),
+      round2(job.labourCost),
+      round2(job.expenseCost),
+      round2(job.purchaseCost),
+      round2(job.writtenOff),
+      round2(job.profit),
+      round2(job.margin),
+    ]);
+
+    downloadCsv('job-profit-loss.csv', headers, rows);
+  }
+
   const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     prospect: 'secondary',
     active: 'default',
@@ -212,8 +238,12 @@ export default function JobProfitLossReport() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Job Profitability</CardTitle>
+          <Button variant="outline" onClick={handleExportCsv} disabled={jobs.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>

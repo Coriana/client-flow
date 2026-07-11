@@ -9,7 +9,13 @@ import { format, startOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface VendorSpend {
   id: string | null;
@@ -94,6 +100,22 @@ export default function VendorSpendReport() {
     },
   };
 
+  function handleExportCsv() {
+    const headers = ['Vendor', 'Purchases', 'Total Amount', '% of Total'];
+    const rows = vendors.map((vendor) => [
+      vendor.name,
+      vendor.purchaseCount,
+      round2(vendor.totalAmount),
+      round2(vendor.percentage),
+    ]);
+
+    if (vendors.length > 0) {
+      rows.push(['Total', totals.purchaseCount, round2(totals.totalSpend), 100]);
+    }
+
+    downloadCsv(`vendor-spend-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -120,6 +142,10 @@ export default function VendorSpendReport() {
             </div>
             <Button onClick={fetchReport} disabled={loading}>
               {loading ? 'Loading...' : 'Run Report'}
+            </Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={vendors.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
             </Button>
           </div>
         </CardContent>

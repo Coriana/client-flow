@@ -9,7 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfYear, endOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface Invoice {
   id: string;
@@ -95,6 +101,22 @@ export default function InvoiceSummaryReport() {
     count: invoices.length,
   };
 
+  function handleExportCsv() {
+    const headers = ['Invoice #', 'Client', 'Issue Date', 'Due Date', 'Status', 'Total', 'Paid', 'Outstanding'];
+    const rows = invoices.map((inv) => [
+      inv.invoice_number,
+      inv.client_name,
+      inv.issue_date,
+      inv.due_date,
+      inv.status,
+      round2(inv.total),
+      round2(inv.amount_paid),
+      round2(inv.total - inv.amount_paid),
+    ]);
+
+    downloadCsv(`invoice-summary-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -132,6 +154,10 @@ export default function InvoiceSummaryReport() {
               </Select>
             </div>
             <Button onClick={fetchReport}>Generate Report</Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={invoices.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>

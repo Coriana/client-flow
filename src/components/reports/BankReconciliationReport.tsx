@@ -7,8 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, XCircle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowUpCircle, ArrowDownCircle, Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface AccountSummary {
   id: string;
@@ -139,9 +144,24 @@ export default function BankReconciliationReport() {
     fetchReport();
   }, []);
 
-  const reconciliationPercentage = totals.totalTransactions > 0 
-    ? (totals.reconciledCount / totals.totalTransactions) * 100 
+  const reconciliationPercentage = totals.totalTransactions > 0
+    ? (totals.reconciledCount / totals.totalTransactions) * 100
     : 0;
+
+  function handleExportCsv() {
+    const headers = ['Account', 'Total', 'Reconciled', 'Unreconciled', 'Money In', 'Money Out', 'Net Flow'];
+    const rows = accounts.map((account) => [
+      account.name,
+      account.totalTransactions,
+      account.reconciledCount,
+      account.unreconciledCount,
+      round2(account.moneyIn),
+      round2(account.moneyOut),
+      round2(account.netCashFlow),
+    ]);
+
+    downloadCsv(`bank-reconciliation-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
 
   return (
     <div className="space-y-6">
@@ -169,6 +189,10 @@ export default function BankReconciliationReport() {
             </div>
             <Button onClick={fetchReport} disabled={loading}>
               {loading ? 'Loading...' : 'Run Report'}
+            </Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={accounts.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
             </Button>
           </div>
         </CardContent>

@@ -8,7 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfYear, endOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface ClientRevenue {
   client_id: string;
@@ -81,6 +87,31 @@ export default function RevenueByClientReport() {
     revenue: c.total_revenue,
   }));
 
+  function handleExportCsv() {
+    const headers = ['Client', 'Invoices', 'Total Revenue', 'Paid', 'Outstanding', '% of Total'];
+    const rows = data.map((row) => [
+      row.client_name,
+      row.invoice_count,
+      round2(row.total_revenue),
+      round2(row.paid_amount),
+      round2(row.outstanding),
+      round2(totalRevenue > 0 ? (row.total_revenue / totalRevenue) * 100 : 0),
+    ]);
+
+    if (data.length > 0) {
+      rows.push([
+        'Total',
+        data.reduce((s, c) => s + c.invoice_count, 0),
+        round2(totalRevenue),
+        round2(data.reduce((s, c) => s + c.paid_amount, 0)),
+        round2(data.reduce((s, c) => s + c.outstanding, 0)),
+        100,
+      ]);
+    }
+
+    downloadCsv(`revenue-by-client-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -100,6 +131,10 @@ export default function RevenueByClientReport() {
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
             <Button onClick={fetchReport}>Generate Report</Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={data.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>

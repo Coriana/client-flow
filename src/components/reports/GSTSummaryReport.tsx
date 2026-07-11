@@ -7,8 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, startOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertCircle, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface InvoiceGST {
   id: string;
@@ -106,6 +111,27 @@ export default function GSTSummaryReport() {
     fetchReport();
   }, []);
 
+  function handleExportCsv() {
+    const headers = ['Section', 'Reference', 'Party', 'Date', 'Ex GST', 'GST', 'Total'];
+    const rows: (string | number)[][] = [];
+
+    invoices.forEach((inv) => {
+      rows.push(['GST Collected on Sales', inv.invoice_number, inv.client_name, inv.issue_date, round2(inv.subtotal), round2(inv.tax_total), round2(inv.total)]);
+    });
+    if (invoices.length > 0) {
+      rows.push(['GST Collected on Sales', 'Total', '', '', round2(totals.salesExGST), round2(totals.gstCollected), round2(totals.salesExGST + totals.gstCollected)]);
+    }
+
+    purchases.forEach((p) => {
+      rows.push(['GST Paid on Purchases', p.description, p.vendor_name, p.date, round2(p.amount), round2(p.tax_amount), round2(p.total)]);
+    });
+    if (purchases.length > 0) {
+      rows.push(['GST Paid on Purchases', 'Total', '', '', round2(totals.purchasesExGST), round2(totals.gstPaid), round2(totals.purchasesExGST + totals.gstPaid)]);
+    }
+
+    downloadCsv(`gst-summary-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -132,6 +158,10 @@ export default function GSTSummaryReport() {
             </div>
             <Button onClick={fetchReport} disabled={loading}>
               {loading ? 'Loading...' : 'Run Report'}
+            </Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={invoices.length === 0 && purchases.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
             </Button>
           </div>
         </CardContent>

@@ -8,7 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface JobTime {
   job_id: string;
@@ -118,6 +124,35 @@ export default function TimeByJobReport() {
     nonBillable: j.non_billable_hours,
   }));
 
+  function handleExportCsv() {
+    const headers = ['Job Number', 'Job Name', 'Client', 'Billable Hrs', 'Non-Billable Hrs', 'Total Hrs', 'Billable Value', 'Utilization'];
+    const rows = data.map((row) => [
+      row.job_number,
+      row.job_name,
+      row.client_name,
+      round2(row.billable_hours),
+      round2(row.non_billable_hours),
+      round2(row.total_hours),
+      round2(row.billable_value),
+      round2(row.total_hours > 0 ? (row.billable_hours / row.total_hours) * 100 : 0),
+    ]);
+
+    if (data.length > 0) {
+      rows.push([
+        'Total',
+        '',
+        '',
+        round2(totals.billable),
+        round2(totals.nonBillable),
+        round2(totals.total),
+        round2(totals.value),
+        round2(totals.total > 0 ? (totals.billable / totals.total) * 100 : 0),
+      ]);
+    }
+
+    downloadCsv(`time-by-job-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -137,6 +172,10 @@ export default function TimeByJobReport() {
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
             <Button onClick={fetchReport}>Generate Report</Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={data.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>

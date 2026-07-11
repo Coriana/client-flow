@@ -8,7 +8,13 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface Asset {
   id: string;
@@ -122,6 +128,36 @@ export default function AssetRegisterReport() {
     }).length,
   };
 
+  function getWarrantyStatus(asset: Asset): string {
+    if (!asset.warranty_end) return '';
+    const end = new Date(asset.warranty_end);
+    if (end < new Date()) return 'Expired';
+    const threeMonths = new Date();
+    threeMonths.setMonth(threeMonths.getMonth() + 3);
+    return end <= threeMonths ? 'Expiring Soon' : 'OK';
+  }
+
+  function handleExportCsv() {
+    const headers = ['Asset Tag', 'Name', 'Type', 'Serial #', 'Status', 'Purchase Date', 'Cost', 'Age Years', 'Age Months', 'Warranty End', 'Warranty Status', 'Client', 'Location'];
+    const rows = assets.map((asset) => [
+      asset.asset_tag,
+      asset.name,
+      asset.asset_type || '',
+      asset.serial_number || '',
+      asset.status,
+      asset.purchase_date || '',
+      asset.purchase_cost !== null ? round2(asset.purchase_cost) : '',
+      asset.age_years,
+      asset.age_months,
+      asset.warranty_end || '',
+      getWarrantyStatus(asset),
+      asset.assigned_client_id ? asset.assigned_client_name || '' : '',
+      asset.assigned_client_id ? '' : asset.location || '',
+    ]);
+
+    downloadCsv('asset-register.csv', headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -233,8 +269,12 @@ export default function AssetRegisterReport() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Asset Register</CardTitle>
+          <Button variant="outline" onClick={handleExportCsv} disabled={assets.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>

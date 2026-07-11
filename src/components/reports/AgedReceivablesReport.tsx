@@ -3,10 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
+import { Download } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
 import { formatDisplayDate } from '@/lib/dates';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface Receivable {
   id: string;
@@ -98,6 +105,23 @@ export default function AgedReceivablesReport() {
     fetchReport();
   }, []);
 
+  function handleExportCsv() {
+    const headers = ['Invoice', 'Client', 'Issue Date', 'Due Date', 'Total', 'Paid', 'Outstanding', 'Aging Bucket', 'Days Overdue'];
+    const rows = receivables.map((inv) => [
+      inv.invoice_number,
+      inv.client_name,
+      inv.issue_date,
+      inv.due_date,
+      round2(inv.total),
+      round2(inv.amount_paid),
+      round2(inv.outstanding),
+      inv.bucket,
+      inv.days_overdue,
+    ]);
+
+    downloadCsv('aged-receivables.csv', headers, rows);
+  }
+
   const getBucketColor = (bucket: string) => {
     switch (bucket) {
       case 'Current': return 'default';
@@ -159,8 +183,12 @@ export default function AgedReceivablesReport() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Outstanding Invoices</CardTitle>
+          <Button variant="outline" onClick={handleExportCsv} disabled={receivables.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
