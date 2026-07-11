@@ -35,7 +35,8 @@ export default function Issues() {
         <Button asChild><Link to="/issues/new"><Plus className="h-4 w-4 mr-2" />Log Issue</Link></Button>
       </div>
       <div className="relative max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-      <div className="border rounded-lg">
+      {/* table (desktop) */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Client</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader>
           <TableBody>
@@ -52,6 +53,31 @@ export default function Issues() {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        ) : filteredIssues.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No issues</p>
+        ) : (
+          filteredIssues.map(issue => (
+            <Link key={issue.id} to={`/issues/${issue.id}`} className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted">
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{issue.title}</span>
+                <div className="flex gap-1">
+                  <Badge variant={severityColors[issue.severity] as any}>{issue.severity}</Badge>
+                  <Badge variant={statusColors[issue.status] as any}>{issue.status.replace('_', ' ')}</Badge>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+                <span>{issue.clients?.name || '-'}</span>
+                <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+              </div>
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );

@@ -89,7 +89,8 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      {/* table (desktop) */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -123,9 +124,9 @@ export default function Inventory() {
                   <TableRow key={item.id}>
                     <TableCell>
                       {item.image_url ? (
-                        <img 
-                          src={item.image_url} 
-                          alt={item.name} 
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
                           className="h-10 w-10 object-cover rounded"
                         />
                       ) : (
@@ -136,7 +137,7 @@ export default function Inventory() {
                     </TableCell>
                     <TableCell className="font-mono text-sm">{item.sku}</TableCell>
                     <TableCell>
-                      <Link 
+                      <Link
                         to={`/inventory/${item.id}`}
                         className="font-medium hover:underline"
                       >
@@ -162,6 +163,42 @@ export default function Inventory() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        ) : filteredItems.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No items found</p>
+        ) : (
+          filteredItems.map((item) => {
+            const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
+            return (
+              <Link
+                key={item.id}
+                to={`/inventory/${item.id}`}
+                className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-medium">{item.name}</span>
+                    <p className="text-sm text-muted-foreground font-mono">{item.sku}</p>
+                  </div>
+                  <Badge variant={item.is_active ? (isLowStock ? 'outline' : 'default') : 'secondary'}>
+                    {item.is_active ? (isLowStock ? 'Low Stock' : 'Active') : 'Inactive'}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{formatCurrency(item.sales_price ?? 0)}</span>
+                  <span className={isLowStock ? 'font-medium text-yellow-600' : 'font-medium'}>
+                    {item.current_stock} in stock
+                  </span>
+                </div>
+              </Link>
+            );
+          })
+        )}
       </div>
     </div>
   );

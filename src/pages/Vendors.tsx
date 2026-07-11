@@ -226,58 +226,89 @@ export default function Vendors() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Credit</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredVendors.length === 0 ? (
+      {/* table (desktop) */}
+      <div className="hidden md:block">
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No vendors found
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Credit</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ) : (
-                filteredVendors.map((vendor) => (
-                  <TableRow
-                    key={vendor.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/vendors/${vendor.id}`)}
-                  >
-                    <TableCell className="font-medium">{vendor.name}</TableCell>
-                    <TableCell>{vendor.contact_name || '-'}</TableCell>
-                    <TableCell>{vendor.contact_email || '-'}</TableCell>
-                    <TableCell>{vendor.contact_phone || '-'}</TableCell>
-                    <TableCell>
-                      {(vendor.credit_balance || 0) > 0 ? (
-                        <span className="text-green-600 font-medium">
-                          {formatCurrency(vendor.credit_balance || 0)}
-                        </span>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={vendor.is_active ? 'default' : 'secondary'}>
-                        {vendor.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {filteredVendors.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      No vendors found
                     </TableCell>
                   </TableRow>
-                ))
+                ) : (
+                  filteredVendors.map((vendor) => (
+                    <TableRow
+                      key={vendor.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/vendors/${vendor.id}`)}
+                    >
+                      <TableCell className="font-medium">{vendor.name}</TableCell>
+                      <TableCell>{vendor.contact_name || '-'}</TableCell>
+                      <TableCell>{vendor.contact_email || '-'}</TableCell>
+                      <TableCell>{vendor.contact_phone || '-'}</TableCell>
+                      <TableCell>
+                        {(vendor.credit_balance || 0) > 0 ? (
+                          <span className="text-green-600 font-medium">
+                            {formatCurrency(vendor.credit_balance || 0)}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={vendor.is_active ? 'default' : 'secondary'}>
+                          {vendor.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {filteredVendors.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No vendors found</p>
+        ) : (
+          filteredVendors.map((vendor) => (
+            <Link
+              key={vendor.id}
+              to={`/vendors/${vendor.id}`}
+              className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-medium">{vendor.name}</span>
+                <Badge variant={vendor.is_active ? 'default' : 'secondary'}>
+                  {vendor.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+              {(vendor.contact_name || vendor.contact_email) && (
+                <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                  {vendor.contact_name && <p>{vendor.contact_name}</p>}
+                  {vendor.contact_email && <p>{vendor.contact_email}</p>}
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </Link>
+          ))
+        )}
+      </div>
     </div>
   );
 }

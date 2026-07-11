@@ -81,7 +81,8 @@ export default function Assets() {
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      {/* table (desktop) */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -111,7 +112,7 @@ export default function Assets() {
                 <TableRow key={asset.id}>
                   <TableCell className="font-mono text-sm">{asset.asset_tag}</TableCell>
                   <TableCell>
-                    <Link 
+                    <Link
                       to={`/assets/${asset.id}`}
                       className="font-medium hover:underline"
                     >
@@ -147,6 +148,42 @@ export default function Assets() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        ) : filteredAssets.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No assets found</p>
+        ) : (
+          filteredAssets.map((asset) => (
+            <Link
+              key={asset.id}
+              to={`/assets/${asset.id}`}
+              className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="font-medium">{asset.name}</span>
+                  <p className="text-sm text-muted-foreground font-mono">{asset.asset_tag}</p>
+                </div>
+                <Badge variant={statusColors[asset.status] as any || 'secondary'}>
+                  {asset.status.replace('_', ' ')}
+                </Badge>
+              </div>
+              <div className="mt-2 text-sm">
+                {asset.clients?.name ? (
+                  <span className="text-green-600 dark:text-green-400 font-medium">
+                    {asset.clients.name}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Available</span>
+                )}
+              </div>
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );

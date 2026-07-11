@@ -95,7 +95,8 @@ export default function Clients() {
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      {/* table (desktop) */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -123,7 +124,7 @@ export default function Clients() {
               filteredClients.map((client) => (
                 <TableRow key={client.id}>
                   <TableCell>
-                    <Link 
+                    <Link
                       to={`/clients/${client.id}`}
                       className="font-medium hover:underline"
                     >
@@ -148,6 +149,42 @@ export default function Clients() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        ) : filteredClients.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No clients found</p>
+        ) : (
+          filteredClients.map((client) => (
+            <Link
+              key={client.id}
+              to={`/clients/${client.id}`}
+              className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="font-medium">{client.name}</span>
+                  {client.trading_name && (
+                    <p className="text-sm text-muted-foreground">T/A {client.trading_name}</p>
+                  )}
+                </div>
+                <Badge variant={client.is_active ? 'default' : 'secondary'}>
+                  {client.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+              {(client.primary_contact?.name || client.primary_contact?.email || client.primary_contact?.phone) && (
+                <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                  {client.primary_contact?.name && <p>{client.primary_contact.name}</p>}
+                  {client.primary_contact?.email && <p>{client.primary_contact.email}</p>}
+                  {client.primary_contact?.phone && <p>{client.primary_contact.phone}</p>}
+                </div>
+              )}
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );

@@ -290,92 +290,119 @@ export default function Team() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
-                {canManageTeam && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.map((member) => (
-                <TableRow 
-                  key={member.id} 
-                  className="cursor-pointer hover:bg-accent"
-                  onClick={() => navigate(`/team/${member.id}`)}
-                >
-                  <TableCell className="font-medium">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        {member.full_name || 'No name set'}
-                        {member.id === user?.id && (
-                          <Badge variant="outline" className="text-xs">You</Badge>
+          {/* table (desktop) */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Joined</TableHead>
+                  {canManageTeam && <TableHead>Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMembers.map((member) => (
+                  <TableRow
+                    key={member.id}
+                    className="cursor-pointer hover:bg-accent"
+                    onClick={() => navigate(`/team/${member.id}`)}
+                  >
+                    <TableCell className="font-medium">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {member.full_name || 'No name set'}
+                          {member.id === user?.id && (
+                            <Badge variant="outline" className="text-xs">You</Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{member.email}</div>
+                        {member.job_title && (
+                          <div className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Briefcase className="h-3 w-3" />
+                            {member.job_title}
+                          </div>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground">{member.email}</div>
-                      {member.job_title && (
-                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Briefcase className="h-3 w-3" />
-                          {member.job_title}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getRoleBadgeVariant(member.role_name)} className="capitalize">
+                        {member.role_name}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {member.department ? (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Building className="h-3 w-3 text-muted-foreground" />
+                          {member.department}
                         </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getRoleBadgeVariant(member.role_name)} className="capitalize">
-                      {member.role_name}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {member.department ? (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Building className="h-3 w-3 text-muted-foreground" />
-                        {member.department}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={member.is_active ? 'default' : 'destructive'}>
-                      {member.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(member.created_at), 'MMM d, yyyy')}
-                  </TableCell>
-                  {canManageTeam && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {member.role_name !== 'owner' && member.id !== user?.id && (
-                        <Select
-                          value={member.role_id || ''}
-                          onValueChange={(v) => handleUpdateRole(member.id, v)}
-                        >
-                          <SelectTrigger className="w-36">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.filter(r => r.name !== 'owner').map(role => (
-                              <SelectItem key={role.id} value={role.id}>
-                                {role.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      {member.role_name === 'owner' && (
-                        <span className="text-muted-foreground text-sm">Cannot change</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    <TableCell>
+                      <Badge variant={member.is_active ? 'default' : 'destructive'}>
+                        {member.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(member.created_at), 'MMM d, yyyy')}
+                    </TableCell>
+                    {canManageTeam && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {member.role_name !== 'owner' && member.id !== user?.id && (
+                          <Select
+                            value={member.role_id || ''}
+                            onValueChange={(v) => handleUpdateRole(member.id, v)}
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.filter(r => r.name !== 'owner').map(role => (
+                                <SelectItem key={role.id} value={role.id}>
+                                  {role.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {member.role_name === 'owner' && (
+                          <span className="text-muted-foreground text-sm">Cannot change</span>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredMembers.map((member) => (
+              <Link
+                key={member.id}
+                to={`/team/${member.id}`}
+                className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{member.full_name || 'No name set'}</span>
+                    {member.id === user?.id && (
+                      <Badge variant="outline" className="text-xs">You</Badge>
+                    )}
+                  </div>
+                  <Badge variant={getRoleBadgeVariant(member.role_name)} className="capitalize">
+                    {member.role_name}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{member.email}</p>
+              </Link>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

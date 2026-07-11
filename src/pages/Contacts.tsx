@@ -109,7 +109,8 @@ export default function Contacts() {
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      {/* table (desktop) */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -163,6 +164,41 @@ export default function Contacts() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        ) : filteredContacts.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No contacts found</p>
+        ) : (
+          filteredContacts.map((contact) => {
+            const orgLabel = organisationLabel(contact);
+            const isActive = contact.is_active !== false;
+            return (
+              <Link
+                key={contact.id}
+                to={`/contacts/${contact.id}`}
+                className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium">{contact.name}</span>
+                  <Badge variant={isActive ? 'default' : 'secondary'}>
+                    {isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+                {orgLabel && <p className="text-sm text-muted-foreground">{orgLabel}</p>}
+                {(contact.email || contact.phone) && (
+                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                    {contact.email && <p>{contact.email}</p>}
+                    {contact.phone && <p>{contact.phone}</p>}
+                  </div>
+                )}
+              </Link>
+            );
+          })
+        )}
       </div>
     </div>
   );

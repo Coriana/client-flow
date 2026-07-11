@@ -138,12 +138,12 @@ export default function Payments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Payments</h1>
           <p className="text-muted-foreground">Track income and expenses</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Dialog open={vendorDialogOpen} onOpenChange={setVendorDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -277,7 +277,8 @@ export default function Payments() {
         </TabsList>
         
         <TabsContent value="received">
-          <div className="border rounded-lg">
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -307,7 +308,7 @@ export default function Payments() {
                     <TableRow key={payment.id}>
                       <TableCell>{formatDisplayDate(payment.date)}</TableCell>
                       <TableCell>
-                        <Link 
+                        <Link
                           to={`/invoices/${payment.invoice_id}`}
                           className="font-medium hover:underline"
                         >
@@ -324,10 +325,40 @@ export default function Payments() {
               </TableBody>
             </Table>
           </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {loading ? (
+              <p className="text-center py-8 text-muted-foreground">Loading...</p>
+            ) : filteredPayments.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No payments found</p>
+            ) : (
+              filteredPayments.map((payment) => (
+                <Link
+                  key={payment.id}
+                  to={`/invoices/${payment.invoice_id}`}
+                  className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold text-green-600">+{formatCurrency(payment.amount)}</span>
+                    <span className="text-sm text-muted-foreground">{formatDisplayDate(payment.date)}</span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium">
+                    {payment.invoices?.invoice_number} · {payment.invoices?.clients?.name || '-'}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground capitalize">
+                    {payment.method?.replace('_', ' ') || '-'}
+                    {payment.reference ? ` · ${payment.reference}` : ''}
+                  </p>
+                </Link>
+              ))
+            )}
+          </div>
         </TabsContent>
-        
+
         <TabsContent value="made">
-          <div className="border rounded-lg">
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -364,9 +395,9 @@ export default function Payments() {
                         <div className="flex items-center gap-2">
                           {purchase.reference || '-'}
                           {purchase.receipt_url && (
-                            <a 
-                              href={purchase.receipt_url} 
-                              target="_blank" 
+                            <a
+                              href={purchase.receipt_url}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-primary hover:underline"
                             >
@@ -386,6 +417,46 @@ export default function Payments() {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {loading ? (
+              <p className="text-center py-8 text-muted-foreground">Loading...</p>
+            ) : filteredPurchases.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                No payments made yet. Click "Pay Vendor" to record an expense.
+              </p>
+            ) : (
+              filteredPurchases.map((purchase) => (
+                <button
+                  key={purchase.id}
+                  type="button"
+                  onClick={() => openEditPurchase(purchase)}
+                  className="block w-full rounded-lg border bg-card p-4 text-left transition-colors active:bg-muted"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold text-red-600">-{formatCurrency(purchase.total)}</span>
+                    <span className="text-sm text-muted-foreground">{formatDisplayDate(purchase.date)}</span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium">{purchase.vendors?.name || purchase.vendor_name || '-'}</p>
+                  <div className="mt-1 flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                    <span>{purchase.description}</span>
+                    {purchase.receipt_url && (
+                      <a
+                        href={purchase.receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-xs text-primary hover:underline"
+                      >
+                        Receipt
+                      </a>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>

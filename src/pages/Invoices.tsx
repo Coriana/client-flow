@@ -271,7 +271,8 @@ export default function Invoices() {
         )}
       </div>
 
-      <div className="border rounded-lg">
+      {/* table (desktop) */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -313,7 +314,7 @@ export default function Invoices() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Link 
+                    <Link
                       to={`/invoices/${invoice.id}`}
                       className="font-medium hover:underline"
                     >
@@ -335,6 +336,44 @@ export default function Invoices() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* cards (mobile) */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <p className="text-center py-8 text-muted-foreground">Loading...</p>
+        ) : filteredInvoices.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No invoices found</p>
+        ) : (
+          filteredInvoices.map((invoice) => (
+            <div key={invoice.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
+              <Checkbox
+                className="mt-1"
+                checked={selectedIds.has(invoice.id)}
+                onCheckedChange={() => toggleSelect(invoice.id)}
+              />
+              <Link
+                to={`/invoices/${invoice.id}`}
+                className="block flex-1 min-w-0 transition-colors active:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium">{invoice.invoice_number}</span>
+                  <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
+                    {invoice.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">{invoice.clients?.name || '-'}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {formatDisplayDate(invoice.issue_date)} – {formatDisplayDate(invoice.due_date)}
+                </p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Paid {formatCurrency(invoice.amount_paid)}</span>
+                  <span className="font-semibold">{formatCurrency(invoice.total)}</span>
+                </div>
+              </Link>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
