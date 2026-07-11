@@ -184,7 +184,9 @@ CREATE TABLE IF NOT EXISTS vendors (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- Vendor Contacts
+-- Vendor Contacts. FROZEN ARCHIVE - like client_contacts above, this table is
+-- superseded by the person-centric contacts + contact_affiliations tables
+-- (see the migration in database.ts); the app no longer reads or writes it.
 CREATE TABLE IF NOT EXISTS vendor_contacts (
   id TEXT PRIMARY KEY,
   vendor_id TEXT NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
@@ -199,10 +201,10 @@ CREATE TABLE IF NOT EXISTS vendor_contacts (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Contacts (people, independent of any one organisation). client_contacts
--- remains as a frozen archive (see the migration in database.ts); new
--- contact data lives here, affiliated to clients/vendors over time via
--- contact_affiliations below.
+-- Contacts (people, independent of any one organisation). client_contacts and
+-- vendor_contacts remain as frozen archives (see the migrations in
+-- database.ts); new contact data lives here, affiliated to clients/vendors
+-- over time via contact_affiliations below.
 CREATE TABLE IF NOT EXISTS contacts (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

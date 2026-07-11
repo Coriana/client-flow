@@ -359,6 +359,95 @@ function runMigrations(database: Database.Database): void {
   } catch (error) {
     console.error('Migration error (contacts backfill from client_contacts):', error);
   }
+
+  // Migration: Backfill `contacts` / `contact_affiliations` from the legacy
+  // `vendor_contacts` table, mirroring the client_contacts backfill above.
+  //
+  // vendor_contacts is left untouched as a frozen archive, same as
+  // client_contacts. The contacts-empty guard used above can't be reused
+  // here: by the time this runs, `contacts` already holds the migrated
+  // client people, so it is never empty on the boot that should migrate
+  // vendors. Instead, idempotency is keyed on the ids themselves - contact
+  // ids are reused from vendor_contacts, so if ANY vendor_contacts id
+  // already exists in contacts this migration has already run and is
+  // skipped. On a fresh DB, vendor_contacts has no rows and nothing happens.
+  try {
+    const { count: vendorContactsCount } = database
+      .prepare('SELECT COUNT(*) as count FROM vendor_contacts')
+      .get() as { count: number };
+
+    if (vendorContactsCount > 0) {
+      const { count: alreadyMigratedCount } = database
+        .prepare(
+          `SELECT COUNT(*) as count FROM vendor_contacts vc
+           WHERE EXISTS (SELECT 1 FROM contacts c WHERE c.id = vc.id)`,
+        )
+        .get() as { count: number };
+
+      if (alreadyMigratedCount === 0) {
+        const legacyVendorContacts = database
+          .prepare('SELECT * FROM vendor_contacts')
+          .all() as Array<{
+            id: string;
+            vendor_id: string;
+            name: string;
+            title: string | null;
+            email: string | null;
+            phone: string | null;
+            notes: string | null;
+            is_primary: number | null;
+            is_active: number | null;
+            created_at: string;
+            updated_at: string;
+          }>;
+
+        const insertContact = database.prepare(`
+          INSERT INTO contacts (id, name, email, phone, notes, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const insertAffiliation = database.prepare(`
+          INSERT INTO contact_affiliations
+            (id, contact_id, vendor_id, title, is_primary, start_date, end_date, notes, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const datePart = (timestamp: string) => timestamp.split(' ')[0].split('T')[0];
+
+        const migrateLegacyVendorContacts = database.transaction((rows: typeof legacyVendorContacts) => {
+          for (const row of rows) {
+            insertContact.run(
+              row.id,
+              row.name,
+              row.email,
+              row.phone,
+              row.notes,
+              row.is_active,
+              row.created_at,
+              row.updated_at,
+            );
+
+            insertAffiliation.run(
+              crypto.randomUUID(),
+              row.id,
+              row.vendor_id,
+              row.title,
+              row.is_primary,
+              datePart(row.created_at),
+              row.is_active ? null : datePart(row.updated_at),
+              row.notes,
+              row.created_at,
+              row.updated_at,
+            );
+          }
+        });
+
+        migrateLegacyVendorContacts(legacyVendorContacts);
+        console.log(`Migration: Converted ${legacyVendorContacts.length} vendor_contacts row(s) into contacts + contact_affiliations`);
+      }
+    }
+  } catch (error) {
+    console.error('Migration error (contacts backfill from vendor_contacts):', error);
+  }
 }
 
 export function closeDatabase(): void {
