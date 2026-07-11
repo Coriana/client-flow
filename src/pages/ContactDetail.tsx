@@ -84,8 +84,17 @@ export default function ContactDetail() {
   const [orgPickerOpen, setOrgPickerOpen] = useState(false);
   const [affTitle, setAffTitle] = useState('');
   const [affStartDate, setAffStartDate] = useState(todayLocal());
+  const [affEndDate, setAffEndDate] = useState('');
   const [affIsPrimary, setAffIsPrimary] = useState(false);
   const [addingAffiliation, setAddingAffiliation] = useState(false);
+
+  // Edit Affiliation dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingAffiliation, setEditingAffiliation] = useState<AffiliationWithOrg | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     if (!isNew && id) {
@@ -201,6 +210,7 @@ export default function ContactDetail() {
     setOrgId('');
     setAffTitle('');
     setAffStartDate(todayLocal());
+    setAffEndDate('');
     setAffIsPrimary(false);
     setDialogOpen(true);
   }
@@ -211,14 +221,21 @@ export default function ContactDetail() {
       return;
     }
 
+    if (affEndDate && affStartDate && affEndDate < affStartDate) {
+      toast({ title: 'Error', description: 'End date cannot be before start date', variant: 'destructive' });
+      return;
+    }
+
     setAddingAffiliation(true);
 
-    if (orgType === 'client' && affIsPrimary) {
-      // Clear primary on this client's other current affiliations first.
+    const orgColumn = orgType === 'client' ? 'client_id' : 'vendor_id';
+
+    if (affIsPrimary) {
+      // Clear primary on this organisation's other current affiliations first.
       await supabase
         .from('contact_affiliations')
         .update({ is_primary: false })
-        .eq('client_id', orgId)
+        .eq(orgColumn, orgId)
         .is('end_date', null);
     }
 
@@ -228,7 +245,8 @@ export default function ContactDetail() {
       vendor_id: orgType === 'vendor' ? orgId : null,
       title: affTitle || null,
       start_date: affStartDate || todayLocal(),
-      is_primary: orgType === 'client' ? affIsPrimary : false,
+      end_date: affEndDate || null,
+      is_primary: affIsPrimary,
     });
 
     if (error) {
@@ -239,6 +257,48 @@ export default function ContactDetail() {
       fetchAffiliations();
     }
     setAddingAffiliation(false);
+  }
+
+  function openEditAffiliationDialog(affiliation: AffiliationWithOrg) {
+    setEditingAffiliation(affiliation);
+    setEditTitle(affiliation.title || '');
+    setEditStartDate(affiliation.start_date || todayLocal());
+    setEditEndDate(affiliation.end_date || '');
+    setEditDialogOpen(true);
+  }
+
+  async function handleUpdateAffiliation() {
+    if (!editingAffiliation) return;
+
+    if (!editStartDate) {
+      toast({ title: 'Error', description: 'Start date is required', variant: 'destructive' });
+      return;
+    }
+
+    if (editEndDate && editEndDate < editStartDate) {
+      toast({ title: 'Error', description: 'End date cannot be before start date', variant: 'destructive' });
+      return;
+    }
+
+    setSavingEdit(true);
+
+    const { error } = await supabase
+      .from('contact_affiliations')
+      .update({
+        title: editTitle || null,
+        start_date: editStartDate,
+        end_date: editEndDate || null,
+      })
+      .eq('id', editingAffiliation.id);
+
+    setSavingEdit(false);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Affiliation updated' });
+      setEditDialogOpen(false);
+      fetchAffiliations();
+    }
   }
 
   async function handleEndAffiliation(affiliation: AffiliationWithOrg) {
@@ -263,12 +323,14 @@ export default function ContactDetail() {
   }
 
   async function handleSetPrimary(affiliation: AffiliationWithOrg) {
-    if (!affiliation.client_id) return;
+    const orgColumn = affiliation.client_id ? 'client_id' : 'vendor_id';
+    const orgId = affiliation.client_id ?? affiliation.vendor_id;
+    if (!orgId) return;
 
     await supabase
       .from('contact_affiliations')
       .update({ is_primary: false })
-      .eq('client_id', affiliation.client_id)
+      .eq(orgColumn, orgId)
       .is('end_date', null);
 
     const { error } = await supabase
@@ -402,7 +464,7 @@ export default function ContactDetail() {
                             <Link to={org.href} className="font-medium hover:underline">
                               {org.name}
                             </Link>
-                            {!!affiliation.is_primary && !!affiliation.client_id && (
+                            {!!affiliation.is_primary && (
                               <Badge variant="secondary">Primary</Badge>
                             )}
                           </div>
@@ -412,18 +474,23 @@ export default function ContactDetail() {
                           {formatDisplayDate(affiliation.start_date)} → {isCurrent ? 'Current' : formatDisplayDate(affiliation.end_date)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {isCurrent && (
-                            <div className="flex justify-end gap-2">
-                              {affiliation.client_id && !affiliation.is_primary && (
-                                <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(affiliation)}>
-                                  Set Primary
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => openEditAffiliationDialog(affiliation)}>
+                              Edit
+                            </Button>
+                            {isCurrent && (
+                              <>
+                                {!affiliation.is_primary && (
+                                  <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(affiliation)}>
+                                    Set Primary
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="sm" onClick={() => handleEndAffiliation(affiliation)}>
+                                  End Affiliation
                                 </Button>
-                              )}
-                              <Button variant="ghost" size="sm" onClick={() => handleEndAffiliation(affiliation)}>
-                                End Affiliation
-                              </Button>
-                            </div>
-                          )}
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -450,7 +517,7 @@ export default function ContactDetail() {
                   if (!v) return;
                   setOrgType(v as 'client' | 'vendor');
                   setOrgId('');
-                  if (v !== 'client') setAffIsPrimary(false);
+                  setAffIsPrimary(false);
                 }}
                 className="justify-start"
               >
@@ -508,32 +575,85 @@ export default function ContactDetail() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Start date</Label>
-              <Input
-                type="date"
-                value={affStartDate}
-                onChange={(e) => setAffStartDate(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Start date</Label>
+                <Input
+                  type="date"
+                  value={affStartDate}
+                  onChange={(e) => setAffStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>End date</Label>
+                <Input
+                  type="date"
+                  value={affEndDate}
+                  onChange={(e) => setAffEndDate(e.target.value)}
+                />
+              </div>
             </div>
 
-            {orgType === 'client' && (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="affIsPrimary"
-                  checked={affIsPrimary}
-                  onCheckedChange={(checked) => setAffIsPrimary(checked === true)}
-                />
-                <Label htmlFor="affIsPrimary" className="font-normal cursor-pointer">
-                  Primary contact
-                </Label>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="affIsPrimary"
+                checked={affIsPrimary}
+                onCheckedChange={(checked) => setAffIsPrimary(checked === true)}
+              />
+              <Label htmlFor="affIsPrimary" className="font-normal cursor-pointer">
+                Primary contact
+              </Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleAddAffiliation} disabled={addingAffiliation}>
               {addingAffiliation ? 'Adding...' : 'Add Affiliation'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Affiliation</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="e.g. Operations Manager"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Start date</Label>
+                <Input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>End date</Label>
+                <Input
+                  type="date"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Clear the end date to make this affiliation current again.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateAffiliation} disabled={savingEdit}>
+              {savingEdit ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

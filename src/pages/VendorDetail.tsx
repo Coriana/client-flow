@@ -28,6 +28,7 @@ import { ArrowLeft, Plus, Edit, CreditCard, Package, Receipt, AlertTriangle, Use
 import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import AffiliatedContacts from '@/components/AffiliatedContacts';
+import PrimaryContactSelector from '@/components/PrimaryContactSelector';
 import LocationSelector from '@/components/LocationSelector';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -160,9 +161,6 @@ export default function VendorDetail() {
       .from('vendors')
       .update({
         name: editedVendor.name,
-        contact_name: editedVendor.contact_name,
-        contact_email: editedVendor.contact_email,
-        contact_phone: editedVendor.contact_phone,
         address: editedVendor.address,
         notes: editedVendor.notes,
         is_active: editedVendor.is_active,
@@ -348,37 +346,12 @@ export default function VendorDetail() {
             <CardContent className="space-y-4">
               {editMode ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Name</Label>
-                      <Input
-                        value={editedVendor.name || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Contact Name</Label>
-                      <Input
-                        value={editedVendor.contact_name || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, contact_name: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input
-                        value={editedVendor.contact_email || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, contact_email: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input
-                        value={editedVendor.contact_phone || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, contact_phone: e.target.value })}
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={editedVendor.name || ''}
+                      onChange={(e) => setEditedVendor({ ...editedVendor, name: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Address</Label>
@@ -409,18 +382,6 @@ export default function VendorDetail() {
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Contact Name</p>
-                    <p>{vendor.contact_name || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p>{vendor.contact_email || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p>{vendor.contact_phone || '-'}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-muted-foreground">Status</p>
                     <Badge variant={vendor.is_active ? 'default' : 'secondary'}>
                       {vendor.is_active ? 'Active' : 'Inactive'}
@@ -436,6 +397,9 @@ export default function VendorDetail() {
                   </div>
                 </div>
               )}
+              <div className="border-t pt-4">
+                <PrimaryContactSelector entityType="vendor" entityId={id!} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

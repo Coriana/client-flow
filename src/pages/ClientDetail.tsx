@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import AffiliatedContacts from '@/components/AffiliatedContacts';
+import PrimaryContactSelector from '@/components/PrimaryContactSelector';
 import LocationSelector from '@/components/LocationSelector';
 import { useConfirm } from '@/components/ConfirmDialog';
 import type { Tables } from '@/integrations/supabase/types';
@@ -43,7 +44,6 @@ export default function ClientDetail() {
   });
   const [jobs, setJobs] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [primaryContact, setPrimaryContact] = useState<any>(null);
 
   useEffect(() => {
     if (isNew) {
@@ -52,7 +52,6 @@ export default function ClientDetail() {
     } else if (id) {
       fetchClient();
       fetchRelatedData();
-      fetchPrimaryContact();
     }
   }, [id, isNew]);
 
@@ -62,22 +61,10 @@ export default function ClientDetail() {
       .select('default_payment_terms')
       .limit(1)
       .single();
-    
+
     if (data?.default_payment_terms) {
       setClient(prev => ({ ...prev, payment_terms: data.default_payment_terms }));
     }
-  }
-
-  async function fetchPrimaryContact() {
-    const { data } = await supabase
-      .from('contact_affiliations')
-      .select('*, contacts(*)')
-      .eq('client_id', id)
-      .eq('is_primary', true)
-      .is('end_date', null)
-      .maybeSingle();
-
-    setPrimaryContact((data as any)?.contacts ?? null);
   }
 
   async function fetchClient() {
@@ -262,28 +249,8 @@ export default function ClientDetail() {
                 <CardTitle>Primary Contact</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {!isNew && primaryContact ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Contact Name</Label>
-                      <Input value={primaryContact.name || ''} readOnly className="bg-muted" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input value={primaryContact.email || ''} readOnly className="bg-muted" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input value={primaryContact.phone || ''} readOnly className="bg-muted" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Manage contacts in the Contacts tab
-                    </p>
-                  </>
-                ) : !isNew ? (
-                  <p className="text-muted-foreground">
-                    No primary contact set. Add contacts in the Contacts tab.
-                  </p>
+                {!isNew ? (
+                  <PrimaryContactSelector entityType="client" entityId={id!} />
                 ) : (
                   <p className="text-muted-foreground">
                     Save the client first, then add contacts in the Contacts tab.

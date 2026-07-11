@@ -51,11 +51,15 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
 
   const [newPerson, setNewPerson] = useState(emptyNewPerson);
   const [newPersonPrimary, setNewPersonPrimary] = useState(false);
+  const [newPersonStartDate, setNewPersonStartDate] = useState(todayLocal());
+  const [newPersonEndDate, setNewPersonEndDate] = useState('');
 
   const [linkSearch, setLinkSearch] = useState('');
   const [linkSelectedId, setLinkSelectedId] = useState<string | null>(null);
   const [linkTitle, setLinkTitle] = useState('');
   const [linkPrimary, setLinkPrimary] = useState(false);
+  const [linkStartDate, setLinkStartDate] = useState(todayLocal());
+  const [linkEndDate, setLinkEndDate] = useState('');
 
   const { data: affiliations = [], isLoading } = useQuery({
     queryKey: affiliationsKey,
@@ -95,7 +99,7 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
   });
 
   const sortedAffiliations = [...affiliations].sort((a, b) => {
-    if (entityType === 'client' && !!a.is_primary !== !!b.is_primary) {
+    if (!!a.is_primary !== !!b.is_primary) {
       return a.is_primary ? -1 : 1;
     }
     return (a.contacts?.name ?? '').localeCompare(b.contacts?.name ?? '');
@@ -105,23 +109,26 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
     setMode('new');
     setNewPerson(emptyNewPerson);
     setNewPersonPrimary(false);
+    setNewPersonStartDate(todayLocal());
+    setNewPersonEndDate('');
     setLinkSearch('');
     setLinkSelectedId(null);
     setLinkTitle('');
     setLinkPrimary(false);
+    setLinkStartDate(todayLocal());
+    setLinkEndDate('');
   }
 
   function invalidateAffiliations() {
     queryClient.invalidateQueries({ queryKey: affiliationsKey });
   }
 
-  /** Clients only: clear `is_primary` on every current affiliation for this client. */
+  /** Clear `is_primary` on every current affiliation for this client or vendor. */
   async function clearCurrentPrimary() {
-    if (entityType !== 'client') return;
     await supabase
       .from('contact_affiliations')
       .update({ is_primary: false })
-      .eq('client_id', entityId)
+      .eq(entityColumn, entityId)
       .eq('is_primary', true)
       .is('end_date', null);
   }
@@ -129,6 +136,11 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
   async function handleCreateNewPerson() {
     if (!newPerson.name.trim()) {
       toast({ title: 'Error', description: 'Name is required', variant: 'destructive' });
+      return;
+    }
+
+    if (newPersonEndDate && newPersonStartDate && newPersonEndDate < newPersonStartDate) {
+      toast({ title: 'Error', description: 'End date cannot be before start date', variant: 'destructive' });
       return;
     }
 
@@ -149,7 +161,7 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
       return;
     }
 
-    if (entityType === 'client' && newPersonPrimary) {
+    if (newPersonPrimary) {
       await clearCurrentPrimary();
     }
 
@@ -157,8 +169,9 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
       contact_id: contact.id,
       [entityColumn]: entityId,
       title: newPerson.title.trim() || null,
-      is_primary: entityType === 'client' ? newPersonPrimary : false,
-      start_date: todayLocal(),
+      is_primary: newPersonPrimary,
+      start_date: newPersonStartDate || todayLocal(),
+      end_date: newPersonEndDate || null,
     });
 
     setSaving(false);
@@ -179,9 +192,14 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
       return;
     }
 
+    if (linkEndDate && linkStartDate && linkEndDate < linkStartDate) {
+      toast({ title: 'Error', description: 'End date cannot be before start date', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
 
-    if (entityType === 'client' && linkPrimary) {
+    if (linkPrimary) {
       await clearCurrentPrimary();
     }
 
@@ -189,8 +207,9 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
       contact_id: linkSelectedId,
       [entityColumn]: entityId,
       title: linkTitle.trim() || null,
-      is_primary: entityType === 'client' ? linkPrimary : false,
-      start_date: todayLocal(),
+      is_primary: linkPrimary,
+      start_date: linkStartDate || todayLocal(),
+      end_date: linkEndDate || null,
     });
 
     setSaving(false);
@@ -311,16 +330,32 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
                     />
                   </div>
                 </div>
-                {entityType === 'client' && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="new-person-primary"
-                      checked={newPersonPrimary}
-                      onCheckedChange={(checked) => setNewPersonPrimary(!!checked)}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Start date</Label>
+                    <Input
+                      type="date"
+                      value={newPersonStartDate}
+                      onChange={(e) => setNewPersonStartDate(e.target.value)}
                     />
-                    <Label htmlFor="new-person-primary">Set as primary contact</Label>
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label>End date</Label>
+                    <Input
+                      type="date"
+                      value={newPersonEndDate}
+                      onChange={(e) => setNewPersonEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="new-person-primary"
+                    checked={newPersonPrimary}
+                    onCheckedChange={(checked) => setNewPersonPrimary(!!checked)}
+                  />
+                  <Label htmlFor="new-person-primary">Set as primary contact</Label>
+                </div>
                 <Button className="w-full" onClick={handleCreateNewPerson} disabled={saving}>
                   {saving ? 'Adding...' : 'Add Contact'}
                 </Button>
@@ -370,16 +405,32 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
                     placeholder="Job title at this entity"
                   />
                 </div>
-                {entityType === 'client' && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="link-primary"
-                      checked={linkPrimary}
-                      onCheckedChange={(checked) => setLinkPrimary(!!checked)}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Start date</Label>
+                    <Input
+                      type="date"
+                      value={linkStartDate}
+                      onChange={(e) => setLinkStartDate(e.target.value)}
                     />
-                    <Label htmlFor="link-primary">Set as primary contact</Label>
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label>End date</Label>
+                    <Input
+                      type="date"
+                      value={linkEndDate}
+                      onChange={(e) => setLinkEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="link-primary"
+                    checked={linkPrimary}
+                    onCheckedChange={(checked) => setLinkPrimary(!!checked)}
+                  />
+                  <Label htmlFor="link-primary">Set as primary contact</Label>
+                </div>
                 <Button className="w-full" onClick={handleLinkExisting} disabled={saving || !linkSelectedId}>
                   {saving ? 'Linking...' : 'Link Contact'}
                 </Button>
@@ -405,7 +456,7 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
                       {affiliation.title && (
                         <span className="text-muted-foreground">· {affiliation.title}</span>
                       )}
-                      {entityType === 'client' && !!affiliation.is_primary && (
+                      {!!affiliation.is_primary && (
                         <Badge variant="secondary" className="gap-1">
                           <Star className="h-3 w-3" />
                           Primary
@@ -418,7 +469,7 @@ export default function AffiliatedContacts({ entityType, entityId }: AffiliatedC
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    {entityType === 'client' && !affiliation.is_primary && (
+                    {!affiliation.is_primary && (
                       <Button
                         variant="ghost"
                         size="sm"
