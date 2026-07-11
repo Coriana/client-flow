@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, UserPlus, Shield, Mail, Search, Building, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { EmptyState } from '@/components/EmptyState';
 
 interface Role {
   id: string;
@@ -290,6 +291,18 @@ export default function Team() {
           </div>
         </CardHeader>
         <CardContent>
+          {members.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No team members yet"
+              description={
+                canManageTeam
+                  ? 'Invite a teammate using the form above to give them access.'
+                  : 'Ask a team owner or admin to invite you a colleague.'
+              }
+            />
+          ) : (
+            <>
           {/* table (desktop) */}
           <div className="hidden md:block">
             <Table>
@@ -304,7 +317,17 @@ export default function Team() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMembers.map((member) => (
+                {filteredMembers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={canManageTeam ? 6 : 5} className="text-center py-8">
+                      <p className="text-muted-foreground">No matches for "{searchTerm}"</p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearchTerm('')}>
+                        Clear search
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                filteredMembers.map((member) => (
                   <TableRow
                     key={member.id}
                     className="cursor-pointer hover:bg-accent"
@@ -375,14 +398,22 @@ export default function Team() {
                       </TableCell>
                     )}
                   </TableRow>
-                ))}
+                )))}
               </TableBody>
             </Table>
           </div>
 
           {/* cards (mobile) */}
           <div className="space-y-3 md:hidden">
-            {filteredMembers.map((member) => (
+            {filteredMembers.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No matches for "{searchTerm}"</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearchTerm('')}>
+                  Clear search
+                </Button>
+              </div>
+            ) : (
+            filteredMembers.map((member) => (
               <Link
                 key={member.id}
                 to={`/team/${member.id}`}
@@ -401,8 +432,11 @@ export default function Team() {
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{member.email}</p>
               </Link>
-            ))}
+            ))
+            )}
           </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -19,10 +19,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Search, ChevronDown, Send, Download, Mail } from 'lucide-react';
+import { Plus, Search, ChevronDown, Send, Download, Mail, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import { formatDisplayDate } from '@/lib/dates';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'> & { clients?: { name: string; contact_email?: string; email?: string } | null };
@@ -101,6 +102,11 @@ export default function Invoices() {
       setSelectedIds(new Set(filteredInvoices.map(inv => inv.id)));
     }
   };
+
+  function clearFilters() {
+    setSearch('');
+    setStatusFilter('all');
+  }
 
   const selectedInvoices = filteredInvoices.filter(inv => selectedIds.has(inv.id));
   const selectedDrafts = selectedInvoices.filter(inv => inv.status === 'draft');
@@ -307,110 +313,164 @@ export default function Invoices() {
         ))}
       </div>
 
-      {/* table (desktop) */}
-      <div className="hidden md:block rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedIds.size === filteredInvoices.length && filteredInvoices.length > 0}
-                  onCheckedChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Invoice #</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Paid</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredInvoices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No invoices found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(invoice.id)}
-                      onCheckedChange={() => toggleSelect(invoice.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      to={`/invoices/${invoice.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {invoice.invoice_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{invoice.clients?.name || '-'}</TableCell>
-                  <TableCell>{formatDisplayDate(invoice.issue_date)}</TableCell>
-                  <TableCell>{formatDisplayDate(invoice.due_date)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.total)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.amount_paid)}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
-                      {invoice.status.replace('_', ' ')}
-                    </Badge>
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12" />
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Loading...
                   </TableCell>
                 </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : invoices.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No invoices yet"
+          description="Create your first invoice to start billing clients."
+          action={
+            <Button asChild>
+              <Link to="/invoices/new">
+                <Plus className="h-4 w-4 mr-2" />
+                New Invoice
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedIds.size === filteredInvoices.length && filteredInvoices.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        {search ? `No matches for "${search}"` : 'No matches for the current filters'}
+                      </p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+                        Clear filters
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(invoice.id)}
+                          onCheckedChange={() => toggleSelect(invoice.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          to={`/invoices/${invoice.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {invoice.invoice_number}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{invoice.clients?.name || '-'}</TableCell>
+                      <TableCell>{formatDisplayDate(invoice.issue_date)}</TableCell>
+                      <TableCell>{formatDisplayDate(invoice.due_date)}</TableCell>
+                      <TableCell>{formatCurrency(invoice.total)}</TableCell>
+                      <TableCell>{formatCurrency(invoice.amount_paid)}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
+                          {invoice.status.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredInvoices.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  {search ? `No matches for "${search}"` : 'No matches for the current filters'}
+                </p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              </div>
+            ) : (
+              filteredInvoices.map((invoice) => (
+                <div key={invoice.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
+                  <Checkbox
+                    className="mt-1"
+                    checked={selectedIds.has(invoice.id)}
+                    onCheckedChange={() => toggleSelect(invoice.id)}
+                  />
+                  <Link
+                    to={`/invoices/${invoice.id}`}
+                    className="block flex-1 min-w-0 transition-colors active:opacity-70"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium">{invoice.invoice_number}</span>
+                      <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
+                        {invoice.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{invoice.clients?.name || '-'}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {formatDisplayDate(invoice.issue_date)} – {formatDisplayDate(invoice.due_date)}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Paid {formatCurrency(invoice.amount_paid)}</span>
+                      <span className="font-semibold">{formatCurrency(invoice.total)}</span>
+                    </div>
+                  </Link>
+                </div>
               ))
             )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* cards (mobile) */}
-      <div className="space-y-3 md:hidden">
-        {loading ? (
-          <p className="text-center py-8 text-muted-foreground">Loading...</p>
-        ) : filteredInvoices.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">No invoices found</p>
-        ) : (
-          filteredInvoices.map((invoice) => (
-            <div key={invoice.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
-              <Checkbox
-                className="mt-1"
-                checked={selectedIds.has(invoice.id)}
-                onCheckedChange={() => toggleSelect(invoice.id)}
-              />
-              <Link
-                to={`/invoices/${invoice.id}`}
-                className="block flex-1 min-w-0 transition-colors active:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium">{invoice.invoice_number}</span>
-                  <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
-                    {invoice.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{invoice.clients?.name || '-'}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {formatDisplayDate(invoice.issue_date)} – {formatDisplayDate(invoice.due_date)}
-                </p>
-                <div className="mt-1 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Paid {formatCurrency(invoice.amount_paid)}</span>
-                  <span className="font-semibold">{formatCurrency(invoice.total)}</span>
-                </div>
-              </Link>
-            </div>
-          ))
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

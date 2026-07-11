@@ -13,8 +13,9 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Users } from 'lucide-react';
 import { PermissionGate } from '@/components/PermissionGate';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Client = Tables<'clients'>;
@@ -95,97 +96,146 @@ export default function Clients() {
         </div>
       </div>
 
-      {/* table (desktop) */}
-      <div className="hidden md:block rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredClients.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No clients found
-                </TableCell>
-              </TableRow>
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : clients.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No clients yet"
+          description="Add your first client to start tracking contacts, jobs, and invoices."
+          action={
+            <PermissionGate resource="clients" action="write">
+              <Button asChild>
+                <Link to="/clients/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Client
+                </Link>
+              </Button>
+            </PermissionGate>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClients.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <p className="text-muted-foreground">No matches for "{search}"</p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                        Clear search
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredClients.map((client) => (
+                    <TableRow key={client.id}>
+                      <TableCell>
+                        <Link
+                          to={`/clients/${client.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {client.name}
+                        </Link>
+                        {client.trading_name && (
+                          <p className="text-sm text-muted-foreground">
+                            T/A {client.trading_name}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell>{client.primary_contact?.name || '-'}</TableCell>
+                      <TableCell>{client.primary_contact?.email || '-'}</TableCell>
+                      <TableCell>{client.primary_contact?.phone || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={client.is_active ? 'default' : 'secondary'}>
+                          {client.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredClients.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No matches for "{search}"</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              </div>
             ) : (
               filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell>
-                    <Link
-                      to={`/clients/${client.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {client.name}
-                    </Link>
-                    {client.trading_name && (
-                      <p className="text-sm text-muted-foreground">
-                        T/A {client.trading_name}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>{client.primary_contact?.name || '-'}</TableCell>
-                  <TableCell>{client.primary_contact?.email || '-'}</TableCell>
-                  <TableCell>{client.primary_contact?.phone || '-'}</TableCell>
-                  <TableCell>
+                <Link
+                  key={client.id}
+                  to={`/clients/${client.id}`}
+                  className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-medium">{client.name}</span>
+                      {client.trading_name && (
+                        <p className="text-sm text-muted-foreground">T/A {client.trading_name}</p>
+                      )}
+                    </div>
                     <Badge variant={client.is_active ? 'default' : 'secondary'}>
                       {client.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                  {(client.primary_contact?.name || client.primary_contact?.email || client.primary_contact?.phone) && (
+                    <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                      {client.primary_contact?.name && <p>{client.primary_contact.name}</p>}
+                      {client.primary_contact?.email && <p>{client.primary_contact.email}</p>}
+                      {client.primary_contact?.phone && <p>{client.primary_contact.phone}</p>}
+                    </div>
+                  )}
+                </Link>
               ))
             )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* cards (mobile) */}
-      <div className="space-y-3 md:hidden">
-        {loading ? (
-          <p className="text-center py-8 text-muted-foreground">Loading...</p>
-        ) : filteredClients.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">No clients found</p>
-        ) : (
-          filteredClients.map((client) => (
-            <Link
-              key={client.id}
-              to={`/clients/${client.id}`}
-              className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="font-medium">{client.name}</span>
-                  {client.trading_name && (
-                    <p className="text-sm text-muted-foreground">T/A {client.trading_name}</p>
-                  )}
-                </div>
-                <Badge variant={client.is_active ? 'default' : 'secondary'}>
-                  {client.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-              {(client.primary_contact?.name || client.primary_contact?.email || client.primary_contact?.phone) && (
-                <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
-                  {client.primary_contact?.name && <p>{client.primary_contact.name}</p>}
-                  {client.primary_contact?.email && <p>{client.primary_contact.email}</p>}
-                  {client.primary_contact?.phone && <p>{client.primary_contact.phone}</p>}
-                </div>
-              )}
-            </Link>
-          ))
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, AlertCircle } from 'lucide-react';
 import { formatDisplayDate } from '@/lib/dates';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Issue = Tables<'issues'> & { clients?: { name: string } | null };
@@ -36,50 +37,90 @@ export default function Issues() {
         <Button asChild><Link to="/issues/new"><Plus className="h-4 w-4 mr-2" />Log Issue</Link></Button>
       </div>
       <div className="relative max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-      {/* table (desktop) */}
-      <div className="hidden md:block rounded-lg border">
-        <Table>
-          <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Client</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {loading ? <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow> :
-            filteredIssues.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No issues</TableCell></TableRow> :
-            filteredIssues.map(issue => (
-              <TableRow key={issue.id}>
-                <TableCell><Link to={`/issues/${issue.id}`} className="font-medium hover:underline">{issue.title}</Link></TableCell>
-                <TableCell>{issue.clients?.name || '-'}</TableCell>
-                <TableCell><Badge variant={severityColors[issue.severity] as any}>{issue.severity}</Badge></TableCell>
-                <TableCell><Badge variant={statusColors[issue.status] as any}>{issue.status.replace('_', ' ')}</Badge></TableCell>
-                <TableCell>{formatDisplayDate(issue.created_at)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Client</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader>
+              <TableBody>
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              </TableBody>
+            </Table>
+          </div>
 
-      {/* cards (mobile) */}
-      <div className="space-y-3 md:hidden">
-        {loading ? (
-          <p className="text-center py-8 text-muted-foreground">Loading...</p>
-        ) : filteredIssues.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">No issues</p>
-        ) : (
-          filteredIssues.map(issue => (
-            <Link key={issue.id} to={`/issues/${issue.id}`} className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted">
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-medium">{issue.title}</span>
-                <div className="flex gap-1">
-                  <Badge variant={severityColors[issue.severity] as any}>{issue.severity}</Badge>
-                  <Badge variant={statusColors[issue.status] as any}>{issue.status.replace('_', ' ')}</Badge>
-                </div>
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : issues.length === 0 ? (
+        <EmptyState
+          icon={AlertCircle}
+          title="No issues yet"
+          description="Log an issue to start tracking problems that need to be resolved."
+          action={
+            <Button asChild>
+              <Link to="/issues/new"><Plus className="h-4 w-4 mr-2" />Log Issue</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Client</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {filteredIssues.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <p className="text-muted-foreground">No matches for "{search}"</p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredIssues.map(issue => (
+                    <TableRow key={issue.id}>
+                      <TableCell><Link to={`/issues/${issue.id}`} className="font-medium hover:underline">{issue.title}</Link></TableCell>
+                      <TableCell>{issue.clients?.name || '-'}</TableCell>
+                      <TableCell><Badge variant={severityColors[issue.severity] as any}>{issue.severity}</Badge></TableCell>
+                      <TableCell><Badge variant={statusColors[issue.status] as any}>{issue.status.replace('_', ' ')}</Badge></TableCell>
+                      <TableCell>{formatDisplayDate(issue.created_at)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredIssues.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No matches for "{search}"</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button>
               </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                <span>{issue.clients?.name || '-'}</span>
-                <span>{formatDisplayDate(issue.created_at)}</span>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
+            ) : (
+              filteredIssues.map(issue => (
+                <Link key={issue.id} to={`/issues/${issue.id}`} className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium">{issue.title}</span>
+                    <div className="flex gap-1">
+                      <Badge variant={severityColors[issue.severity] as any}>{issue.severity}</Badge>
+                      <Badge variant={statusColors[issue.status] as any}>{issue.status.replace('_', ' ')}</Badge>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+                    <span>{issue.clients?.name || '-'}</span>
+                    <span>{formatDisplayDate(issue.created_at)}</span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

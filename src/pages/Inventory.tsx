@@ -13,8 +13,9 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, AlertTriangle } from 'lucide-react';
+import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Item = Tables<'items'>;
@@ -89,117 +90,167 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* table (desktop) */}
-      <div className="hidden md:block rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60px]"></TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredItems.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No items found
-                </TableCell>
-              </TableRow>
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="No items yet"
+          description="Add an item to start tracking stock levels and pricing."
+          action={
+            <Button asChild>
+              <Link to="/inventory/new">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <p className="text-muted-foreground">No matches for "{search}"</p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                        Clear search
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredItems.map((item) => {
+                    const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="h-10 w-10 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+                              —
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                        <TableCell>
+                          <Link
+                            to={`/inventory/${item.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {item.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{item.category || '-'}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.unit_cost ?? 0)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.sales_price ?? 0)}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
+                            {item.current_stock}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={item.is_active ? (isLowStock ? 'outline' : 'default') : 'secondary'}>
+                            {item.is_active ? (isLowStock ? 'Low Stock' : 'Active') : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredItems.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No matches for "{search}"</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              </div>
             ) : (
               filteredItems.map((item) => {
                 const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
                 return (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="h-10 w-10 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
-                          —
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                    <TableCell>
-                      <Link
-                        to={`/inventory/${item.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {item.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{item.category || '-'}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_cost ?? 0)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.sales_price ?? 0)}</TableCell>
-                    <TableCell className="text-right">
-                      <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
-                        {item.current_stock}
-                      </span>
-                    </TableCell>
-                    <TableCell>
+                  <Link
+                    key={item.id}
+                    to={`/inventory/${item.id}`}
+                    className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-medium">{item.name}</span>
+                        <p className="text-sm text-muted-foreground font-mono">{item.sku}</p>
+                      </div>
                       <Badge variant={item.is_active ? (isLowStock ? 'outline' : 'default') : 'secondary'}>
                         {item.is_active ? (isLowStock ? 'Low Stock' : 'Active') : 'Inactive'}
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{formatCurrency(item.sales_price ?? 0)}</span>
+                      <span className={isLowStock ? 'font-medium text-yellow-600' : 'font-medium'}>
+                        {item.current_stock} in stock
+                      </span>
+                    </div>
+                  </Link>
                 );
               })
             )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* cards (mobile) */}
-      <div className="space-y-3 md:hidden">
-        {loading ? (
-          <p className="text-center py-8 text-muted-foreground">Loading...</p>
-        ) : filteredItems.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">No items found</p>
-        ) : (
-          filteredItems.map((item) => {
-            const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
-            return (
-              <Link
-                key={item.id}
-                to={`/inventory/${item.id}`}
-                className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="font-medium">{item.name}</span>
-                    <p className="text-sm text-muted-foreground font-mono">{item.sku}</p>
-                  </div>
-                  <Badge variant={item.is_active ? (isLowStock ? 'outline' : 'default') : 'secondary'}>
-                    {item.is_active ? (isLowStock ? 'Low Stock' : 'Active') : 'Inactive'}
-                  </Badge>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{formatCurrency(item.sales_price ?? 0)}</span>
-                  <span className={isLowStock ? 'font-medium text-yellow-600' : 'font-medium'}>
-                    {item.current_stock} in stock
-                  </span>
-                </div>
-              </Link>
-            );
-          })
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -13,8 +13,9 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, User } from 'lucide-react';
 import { PermissionGate } from '@/components/PermissionGate';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Contact = Tables<'contacts'>;
@@ -109,97 +110,146 @@ export default function Contacts() {
         </div>
       </div>
 
-      {/* table (desktop) */}
-      <div className="hidden md:block rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Organisation</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredContacts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No contacts found
-                </TableCell>
-              </TableRow>
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Organisation</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : contacts.length === 0 ? (
+        <EmptyState
+          icon={User}
+          title="No contacts yet"
+          description="Add a contact and affiliate them with a client or vendor."
+          action={
+            <PermissionGate resource="clients" action="write">
+              <Button asChild>
+                <Link to="/contacts/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Contact
+                </Link>
+              </Button>
+            </PermissionGate>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Organisation</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredContacts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <p className="text-muted-foreground">No matches for "{search}"</p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                        Clear search
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredContacts.map((contact) => {
+                    const orgLabel = organisationLabel(contact);
+                    const isActive = contact.is_active !== false;
+                    return (
+                      <TableRow key={contact.id}>
+                        <TableCell>
+                          <Link
+                            to={`/contacts/${contact.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {contact.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          {orgLabel ? orgLabel : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell>{contact.email || '-'}</TableCell>
+                        <TableCell>{contact.phone || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={isActive ? 'default' : 'secondary'}>
+                            {isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredContacts.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No matches for "{search}"</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              </div>
             ) : (
               filteredContacts.map((contact) => {
                 const orgLabel = organisationLabel(contact);
                 const isActive = contact.is_active !== false;
                 return (
-                  <TableRow key={contact.id}>
-                    <TableCell>
-                      <Link
-                        to={`/contacts/${contact.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {contact.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {orgLabel ? orgLabel : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell>{contact.email || '-'}</TableCell>
-                    <TableCell>{contact.phone || '-'}</TableCell>
-                    <TableCell>
+                  <Link
+                    key={contact.id}
+                    to={`/contacts/${contact.id}`}
+                    className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium">{contact.name}</span>
                       <Badge variant={isActive ? 'default' : 'secondary'}>
                         {isActive ? 'Active' : 'Inactive'}
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    {orgLabel && <p className="text-sm text-muted-foreground">{orgLabel}</p>}
+                    {(contact.email || contact.phone) && (
+                      <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                        {contact.email && <p>{contact.email}</p>}
+                        {contact.phone && <p>{contact.phone}</p>}
+                      </div>
+                    )}
+                  </Link>
                 );
               })
             )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* cards (mobile) */}
-      <div className="space-y-3 md:hidden">
-        {loading ? (
-          <p className="text-center py-8 text-muted-foreground">Loading...</p>
-        ) : filteredContacts.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">No contacts found</p>
-        ) : (
-          filteredContacts.map((contact) => {
-            const orgLabel = organisationLabel(contact);
-            const isActive = contact.is_active !== false;
-            return (
-              <Link
-                key={contact.id}
-                to={`/contacts/${contact.id}`}
-                className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium">{contact.name}</span>
-                  <Badge variant={isActive ? 'default' : 'secondary'}>
-                    {isActive ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-                {orgLabel && <p className="text-sm text-muted-foreground">{orgLabel}</p>}
-                {(contact.email || contact.phone) && (
-                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
-                    {contact.email && <p>{contact.email}</p>}
-                    {contact.phone && <p>{contact.phone}</p>}
-                  </div>
-                )}
-              </Link>
-            );
-          })
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

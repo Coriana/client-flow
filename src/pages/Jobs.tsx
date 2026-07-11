@@ -13,8 +13,9 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Briefcase } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Job = Tables<'jobs'> & { clients?: { name: string } | null };
@@ -81,85 +82,132 @@ export default function Jobs() {
         </div>
       </div>
 
-      {/* table (desktop) */}
-      <div className="hidden md:block rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Job #</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Budget</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredJobs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No jobs found
-                </TableCell>
-              </TableRow>
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job #</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Budget</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : jobs.length === 0 ? (
+        <EmptyState
+          icon={Briefcase}
+          title="No jobs yet"
+          description="Create a job to start tracking work and budgets for a client."
+          action={
+            <Button asChild>
+              <Link to="/jobs/new">
+                <Plus className="h-4 w-4 mr-2" />
+                New Job
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job #</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Budget</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredJobs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <p className="text-muted-foreground">No matches for "{search}"</p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                        Clear search
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredJobs.map((job) => (
+                    <TableRow key={job.id}>
+                      <TableCell className="font-mono text-sm">{job.job_number}</TableCell>
+                      <TableCell>
+                        <Link
+                          to={`/jobs/${job.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {job.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{job.clients?.name || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusColors[job.status] as any || 'secondary'}>
+                          {job.status.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{job.budget ? formatCurrency(job.budget) : '-'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredJobs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No matches for "{search}"</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              </div>
             ) : (
               filteredJobs.map((job) => (
-                <TableRow key={job.id}>
-                  <TableCell className="font-mono text-sm">{job.job_number}</TableCell>
-                  <TableCell>
-                    <Link
-                      to={`/jobs/${job.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {job.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{job.clients?.name || '-'}</TableCell>
-                  <TableCell>
+                <Link
+                  key={job.id}
+                  to={`/jobs/${job.id}`}
+                  className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium">{job.name}</span>
                     <Badge variant={statusColors[job.status] as any || 'secondary'}>
                       {job.status.replace('_', ' ')}
                     </Badge>
-                  </TableCell>
-                  <TableCell>{job.budget ? formatCurrency(job.budget) : '-'}</TableCell>
-                </TableRow>
+                  </div>
+                  <p className="text-sm text-muted-foreground font-mono">{job.job_number}</p>
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{job.clients?.name || '-'}</span>
+                    <span className="font-medium">{job.budget ? formatCurrency(job.budget) : '-'}</span>
+                  </div>
+                </Link>
               ))
             )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* cards (mobile) */}
-      <div className="space-y-3 md:hidden">
-        {loading ? (
-          <p className="text-center py-8 text-muted-foreground">Loading...</p>
-        ) : filteredJobs.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">No jobs found</p>
-        ) : (
-          filteredJobs.map((job) => (
-            <Link
-              key={job.id}
-              to={`/jobs/${job.id}`}
-              className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-medium">{job.name}</span>
-                <Badge variant={statusColors[job.status] as any || 'secondary'}>
-                  {job.status.replace('_', ' ')}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground font-mono">{job.job_number}</p>
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{job.clients?.name || '-'}</span>
-                <span className="font-medium">{job.budget ? formatCurrency(job.budget) : '-'}</span>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

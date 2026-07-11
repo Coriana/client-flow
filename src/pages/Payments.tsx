@@ -27,6 +27,7 @@ import { Plus, Search, DollarSign, Receipt, Store, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import { formatDisplayDate } from '@/lib/dates';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 import MakePaymentDialog from '@/components/MakePaymentDialog';
 import EditPurchaseDialog from '@/components/EditPurchaseDialog';
@@ -277,187 +278,278 @@ export default function Payments() {
         </TabsList>
         
         <TabsContent value="received">
-          {/* table (desktop) */}
-          <div className="hidden md:block rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No payments found
-                    </TableCell>
-                  </TableRow>
+          {loading ? (
+            <>
+              {/* table (desktop) */}
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Loading...
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* cards (mobile) */}
+              <div className="space-y-3 md:hidden">
+                <p className="text-center py-8 text-muted-foreground">Loading...</p>
+              </div>
+            </>
+          ) : payments.length === 0 ? (
+            <EmptyState
+              icon={DollarSign}
+              title="No payments received yet"
+              description="Record a payment against an invoice to start tracking income."
+              action={
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Receive Payment
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {/* table (desktop) */}
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <p className="text-muted-foreground">No matches for "{search}"</p>
+                          <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                            Clear search
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>{formatDisplayDate(payment.date)}</TableCell>
+                          <TableCell>
+                            <Link
+                              to={`/invoices/${payment.invoice_id}`}
+                              className="font-medium hover:underline"
+                            >
+                              {payment.invoices?.invoice_number}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{payment.invoices?.clients?.name || '-'}</TableCell>
+                          <TableCell className="capitalize">{payment.method?.replace('_', ' ') || '-'}</TableCell>
+                          <TableCell>{payment.reference || '-'}</TableCell>
+                          <TableCell className="text-right font-medium text-green-600">+{formatCurrency(payment.amount)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* cards (mobile) */}
+              <div className="space-y-3 md:hidden">
+                {filteredPayments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No matches for "{search}"</p>
+                    <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                      Clear search
+                    </Button>
+                  </div>
                 ) : (
                   filteredPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>{formatDisplayDate(payment.date)}</TableCell>
-                      <TableCell>
-                        <Link
-                          to={`/invoices/${payment.invoice_id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {payment.invoices?.invoice_number}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{payment.invoices?.clients?.name || '-'}</TableCell>
-                      <TableCell className="capitalize">{payment.method?.replace('_', ' ') || '-'}</TableCell>
-                      <TableCell>{payment.reference || '-'}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">+{formatCurrency(payment.amount)}</TableCell>
-                    </TableRow>
+                    <Link
+                      key={payment.id}
+                      to={`/invoices/${payment.invoice_id}`}
+                      className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-semibold text-green-600">+{formatCurrency(payment.amount)}</span>
+                        <span className="text-sm text-muted-foreground">{formatDisplayDate(payment.date)}</span>
+                      </div>
+                      <p className="mt-1 text-sm font-medium">
+                        {payment.invoices?.invoice_number} · {payment.invoices?.clients?.name || '-'}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground capitalize">
+                        {payment.method?.replace('_', ' ') || '-'}
+                        {payment.reference ? ` · ${payment.reference}` : ''}
+                      </p>
+                    </Link>
                   ))
                 )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* cards (mobile) */}
-          <div className="space-y-3 md:hidden">
-            {loading ? (
-              <p className="text-center py-8 text-muted-foreground">Loading...</p>
-            ) : filteredPayments.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No payments found</p>
-            ) : (
-              filteredPayments.map((payment) => (
-                <Link
-                  key={payment.id}
-                  to={`/invoices/${payment.invoice_id}`}
-                  className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-green-600">+{formatCurrency(payment.amount)}</span>
-                    <span className="text-sm text-muted-foreground">{formatDisplayDate(payment.date)}</span>
-                  </div>
-                  <p className="mt-1 text-sm font-medium">
-                    {payment.invoices?.invoice_number} · {payment.invoices?.clients?.name || '-'}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground capitalize">
-                    {payment.method?.replace('_', ' ') || '-'}
-                    {payment.reference ? ` · ${payment.reference}` : ''}
-                  </p>
-                </Link>
-              ))
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="made">
-          {/* table (desktop) */}
-          <div className="hidden md:block rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredPurchases.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No payments made yet. Click "Pay Vendor" to record an expense.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPurchases.map((purchase) => (
-                    <TableRow key={purchase.id}>
-                      <TableCell>{formatDisplayDate(purchase.date)}</TableCell>
-                      <TableCell className="font-medium">{purchase.description}</TableCell>
-                      <TableCell>{purchase.vendors?.name || purchase.vendor_name || '-'}</TableCell>
-                      <TableCell className="capitalize">{purchase.payment_method?.replace('_', ' ') || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {purchase.reference || '-'}
-                          {purchase.receipt_url && (
-                            <a
-                              href={purchase.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline"
-                            >
-                              Receipt
-                            </a>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-red-600">-{formatCurrency(purchase.total)}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => openEditPurchase(purchase)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
+          {loading ? (
+            <>
+              {/* table (desktop) */}
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Loading...
                       </TableCell>
                     </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* cards (mobile) */}
+              <div className="space-y-3 md:hidden">
+                <p className="text-center py-8 text-muted-foreground">Loading...</p>
+              </div>
+            </>
+          ) : purchases.length === 0 ? (
+            <EmptyState
+              icon={Receipt}
+              title="No payments made yet"
+              description="Record a payment to a vendor to start tracking expenses."
+              action={
+                <Button onClick={() => setMakePaymentOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Pay Vendor
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {/* table (desktop) */}
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPurchases.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <p className="text-muted-foreground">No matches for "{search}"</p>
+                          <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                            Clear search
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPurchases.map((purchase) => (
+                        <TableRow key={purchase.id}>
+                          <TableCell>{formatDisplayDate(purchase.date)}</TableCell>
+                          <TableCell className="font-medium">{purchase.description}</TableCell>
+                          <TableCell>{purchase.vendors?.name || purchase.vendor_name || '-'}</TableCell>
+                          <TableCell className="capitalize">{purchase.payment_method?.replace('_', ' ') || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {purchase.reference || '-'}
+                              {purchase.receipt_url && (
+                                <a
+                                  href={purchase.receipt_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  Receipt
+                                </a>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-red-600">-{formatCurrency(purchase.total)}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => openEditPurchase(purchase)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* cards (mobile) */}
+              <div className="space-y-3 md:hidden">
+                {filteredPurchases.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No matches for "{search}"</p>
+                    <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>
+                      Clear search
+                    </Button>
+                  </div>
+                ) : (
+                  filteredPurchases.map((purchase) => (
+                    <button
+                      key={purchase.id}
+                      type="button"
+                      onClick={() => openEditPurchase(purchase)}
+                      className="block w-full rounded-lg border bg-card p-4 text-left transition-colors active:bg-muted"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-semibold text-red-600">-{formatCurrency(purchase.total)}</span>
+                        <span className="text-sm text-muted-foreground">{formatDisplayDate(purchase.date)}</span>
+                      </div>
+                      <p className="mt-1 text-sm font-medium">{purchase.vendors?.name || purchase.vendor_name || '-'}</p>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                        <span>{purchase.description}</span>
+                        {purchase.receipt_url && (
+                          <a
+                            href={purchase.receipt_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 text-xs text-primary hover:underline"
+                          >
+                            Receipt
+                          </a>
+                        )}
+                      </div>
+                    </button>
                   ))
                 )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* cards (mobile) */}
-          <div className="space-y-3 md:hidden">
-            {loading ? (
-              <p className="text-center py-8 text-muted-foreground">Loading...</p>
-            ) : filteredPurchases.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">
-                No payments made yet. Click "Pay Vendor" to record an expense.
-              </p>
-            ) : (
-              filteredPurchases.map((purchase) => (
-                <button
-                  key={purchase.id}
-                  type="button"
-                  onClick={() => openEditPurchase(purchase)}
-                  className="block w-full rounded-lg border bg-card p-4 text-left transition-colors active:bg-muted"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-red-600">-{formatCurrency(purchase.total)}</span>
-                    <span className="text-sm text-muted-foreground">{formatDisplayDate(purchase.date)}</span>
-                  </div>
-                  <p className="mt-1 text-sm font-medium">{purchase.vendors?.name || purchase.vendor_name || '-'}</p>
-                  <div className="mt-1 flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                    <span>{purchase.description}</span>
-                    {purchase.receipt_url && (
-                      <a
-                        href={purchase.receipt_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="shrink-0 text-xs text-primary hover:underline"
-                      >
-                        Receipt
-                      </a>
-                    )}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
