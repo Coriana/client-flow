@@ -37,10 +37,20 @@ const statusColors: Record<string, string> = {
   written_off: 'destructive',
 };
 
+const STATUS_FILTER_ORDER = ['draft', 'sent', 'partially_paid', 'paid', 'overdue', 'void', 'written_off'];
+
+function humanizeStatus(status: string) {
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { formatCurrency } = useBranding();
@@ -63,9 +73,15 @@ export default function Invoices() {
     setLoading(false);
   }
 
-  const filteredInvoices = invoices.filter(inv => 
-    inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-    inv.clients?.name?.toLowerCase().includes(search.toLowerCase())
+  const statusCounts = STATUS_FILTER_ORDER.reduce<Record<string, number>>((acc, status) => {
+    acc[status] = invoices.filter(inv => inv.status === status).length;
+    return acc;
+  }, {});
+
+  const filteredInvoices = invoices.filter(inv =>
+    (statusFilter === 'all' || inv.status === statusFilter) &&
+    (inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+    inv.clients?.name?.toLowerCase().includes(search.toLowerCase()))
   );
 
   const toggleSelect = (id: string) => {
@@ -269,6 +285,26 @@ export default function Invoices() {
             </Button>
           </div>
         )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={statusFilter === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('all')}
+        >
+          All ({invoices.length})
+        </Button>
+        {STATUS_FILTER_ORDER.filter(status => statusCounts[status] > 0).map(status => (
+          <Button
+            key={status}
+            variant={statusFilter === status ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter(status)}
+          >
+            {humanizeStatus(status)} ({statusCounts[status]})
+          </Button>
+        ))}
       </div>
 
       {/* table (desktop) */}
