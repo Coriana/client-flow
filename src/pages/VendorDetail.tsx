@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Edit, CreditCard, Package, Receipt, AlertTriangle, Users, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
+import { formatDisplayDate } from '@/lib/dates';
 import AffiliatedContacts from '@/components/AffiliatedContacts';
 import PrimaryContactSelector from '@/components/PrimaryContactSelector';
 import LocationSelector from '@/components/LocationSelector';
@@ -200,10 +201,6 @@ export default function VendorDetail() {
       fetchData();
     }
   }
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-AU');
-  };
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -475,7 +472,7 @@ export default function VendorDetail() {
                   ) : (
                     purchases.map((purchase) => (
                       <TableRow key={purchase.id}>
-                        <TableCell>{formatDate(purchase.date)}</TableCell>
+                        <TableCell>{formatDisplayDate(purchase.date)}</TableCell>
                         <TableCell>{purchase.description}</TableCell>
                         <TableCell>{purchase.reference || '-'}</TableCell>
                         <TableCell className="text-right">{formatCurrency(purchase.amount)}</TableCell>
@@ -540,7 +537,7 @@ export default function VendorDetail() {
                             {issue.severity}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDate(issue.created_at)}</TableCell>
+                        <TableCell>{formatDisplayDate(issue.created_at)}</TableCell>
                       </TableRow>
                     ))
                   )}

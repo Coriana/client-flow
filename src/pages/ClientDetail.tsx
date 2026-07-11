@@ -14,6 +14,7 @@ import AffiliatedContacts from '@/components/AffiliatedContacts';
 import PrimaryContactSelector from '@/components/PrimaryContactSelector';
 import LocationSelector from '@/components/LocationSelector';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Client = Tables<'clients'>;
@@ -23,6 +24,7 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const { formatCurrency } = useBranding();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -354,7 +356,7 @@ export default function ClientDetail() {
                     >
                       <div className="font-medium">{inv.invoice_number}</div>
                       <div className="text-sm text-muted-foreground">
-                        ${inv.total.toFixed(2)} - {inv.status}
+                        {formatCurrency(inv.total)} - {inv.status}
                       </div>
                     </Link>
                   ))}

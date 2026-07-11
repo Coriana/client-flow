@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search } from 'lucide-react';
 import { PermissionGate } from '@/components/PermissionGate';
+import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Asset = Tables<'assets'> & { clients?: { name: string } | null };
@@ -40,6 +41,7 @@ async function fetchAssets(): Promise<Asset[]> {
 
 export default function Assets() {
   const [search, setSearch] = useState('');
+  const { formatCurrency } = useBranding();
   const { data: assets = [], isLoading: loading } = useQuery({
     queryKey: ['assets'],
     queryFn: fetchAssets,
@@ -132,7 +134,7 @@ export default function Assets() {
                   <TableCell>
                     {asset.default_rental_rate ? (
                       <span className="text-sm">
-                        ${asset.default_rental_rate.toFixed(2)}/{asset.default_billing_frequency || 'monthly'}
+                        {formatCurrency(asset.default_rental_rate)}/{asset.default_billing_frequency || 'monthly'}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">-</span>

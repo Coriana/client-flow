@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/contexts/BrandingContext";
-import { formatDisplayDate } from "@/lib/dates";
+import { formatDisplayDate, parseDateOnly } from "@/lib/dates";
 import LocationSelector from "@/components/LocationSelector";
 import {
   ArrowLeft,
@@ -402,7 +402,7 @@ export default function AssetDetail() {
   }
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-AU", {
+    return parseDateOnly(dateStr.slice(0, 10)).toLocaleDateString("en-AU", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -585,7 +585,7 @@ export default function AssetDetail() {
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{doc.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatFileSize(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}
+                          {formatFileSize(doc.file_size)} • {formatDisplayDate(doc.created_at)}
                         </p>
                       </div>
                     </div>

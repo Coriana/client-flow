@@ -7,12 +7,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Briefcase, Clock, FileText, AlertTriangle, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { useBranding } from "@/contexts/BrandingContext";
 
 interface TeamMemberActivityProps {
   memberId: string;
 }
 
 const TeamMemberActivity = ({ memberId }: TeamMemberActivityProps) => {
+  const { formatCurrency } = useBranding();
   const [jobs, setJobs] = useState<any[]>([]);
   const [timesheets, setTimesheets] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -205,7 +207,7 @@ const TeamMemberActivity = ({ memberId }: TeamMemberActivityProps) => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-medium">${invoice.total?.toFixed(2)}</div>
+                            <div className="font-medium">{formatCurrency(invoice.total || 0)}</div>
                             <Badge variant={getStatusBadgeVariant(invoice.status)} className="capitalize">
                               {invoice.status}
                             </Badge>
@@ -268,7 +270,7 @@ const TeamMemberActivity = ({ memberId }: TeamMemberActivityProps) => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-medium">${expense.amount?.toFixed(2)}</div>
+                          <div className="font-medium">{formatCurrency(expense.amount || 0)}</div>
                           <div className="text-sm text-muted-foreground">
                             {format(new Date(expense.date), 'PP')}
                           </div>

@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, ArrowLeft, ArrowRight, Check, AlertCircle, Bookmark, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { todayLocal } from '@/lib/dates';
 
 interface ImportBillCSVDialogProps {
@@ -114,6 +115,7 @@ export default function ImportBillCSVDialog({
   vendorName 
 }: ImportBillCSVDialogProps) {
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState<Step>('upload');
@@ -612,11 +614,11 @@ export default function ImportBillCSVDialog({
                               )}
                             </span>
                           )}
-                          {' '}@ ${effectiveUnitPrice.toFixed(2)}/unit = ${row.original.line_total.toFixed(2)}
+                          {' '}@ {formatCurrency(effectiveUnitPrice)}/unit = {formatCurrency(row.original.line_total)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline">${row.original.line_total.toFixed(2)}</Badge>
+                        <Badge variant="outline">{formatCurrency(row.original.line_total)}</Badge>
                       </div>
                     </div>
                     
@@ -733,7 +735,7 @@ export default function ImportBillCSVDialog({
                 <span className="text-yellow-600">{generalCount} general expenses</span>
               </div>
               <div className="font-medium">
-                Total: ${totalAmount.toFixed(2)}
+                Total: {formatCurrency(totalAmount)}
               </div>
             </div>
           </div>
@@ -768,7 +770,7 @@ export default function ImportBillCSVDialog({
               
               <div className="border-t pt-4">
                 <p className="text-lg font-medium">
-                  Total Amount: ${totalAmount.toFixed(2)}
+                  Total Amount: {formatCurrency(totalAmount)}
                 </p>
               </div>
             </div>

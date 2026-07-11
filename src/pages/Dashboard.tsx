@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSetupComplete } from '@/hooks/useSetupComplete';
 import { useBranding } from '@/contexts/BrandingContext';
 import { SetupWizard } from '@/components/setup/SetupWizard';
-import { formatDateOnly } from '@/lib/dates';
+import { formatDateOnly, formatDisplayDate } from '@/lib/dates';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   DollarSign, 
@@ -545,7 +545,7 @@ export default function Dashboard() {
                           {inv.clients?.name || 'Unknown Client'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Due: {new Date(inv.due_date).toLocaleDateString()}
+                          Due: {formatDisplayDate(inv.due_date)}
                         </p>
                       </div>
                       <div className="text-right">

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search } from 'lucide-react';
+import { formatDisplayDate } from '@/lib/dates';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Issue = Tables<'issues'> & { clients?: { name: string } | null };
@@ -48,7 +49,7 @@ export default function Issues() {
                 <TableCell>{issue.clients?.name || '-'}</TableCell>
                 <TableCell><Badge variant={severityColors[issue.severity] as any}>{issue.severity}</Badge></TableCell>
                 <TableCell><Badge variant={statusColors[issue.status] as any}>{issue.status.replace('_', ' ')}</Badge></TableCell>
-                <TableCell>{new Date(issue.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>{formatDisplayDate(issue.created_at)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -73,7 +74,7 @@ export default function Issues() {
               </div>
               <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
                 <span>{issue.clients?.name || '-'}</span>
-                <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                <span>{formatDisplayDate(issue.created_at)}</span>
               </div>
             </Link>
           ))

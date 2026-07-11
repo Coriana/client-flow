@@ -1641,7 +1641,7 @@ export default function JobDetail() {
                           {Math.abs(mov.quantity)} x {(mov as any).items?.name || 'Unknown Item'}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {new Date(mov.created_at).toLocaleDateString()}
+                          {formatDisplayDate(mov.created_at)}
                           {mov.notes && ` • ${mov.notes}`}
                           {mov.unit_cost && ` • ${formatCurrency(Math.abs(mov.quantity) * mov.unit_cost)}`}
                         </div>

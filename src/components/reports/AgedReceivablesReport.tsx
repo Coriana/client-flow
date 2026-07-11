@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
 import { useBranding } from '@/contexts/BrandingContext';
+import { formatDisplayDate } from '@/lib/dates';
 
 interface Receivable {
   id: string;
@@ -191,8 +192,8 @@ export default function AgedReceivablesReport() {
                       </Link>
                     </TableCell>
                     <TableCell>{inv.client_name}</TableCell>
-                    <TableCell>{new Date(inv.issue_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(inv.due_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDisplayDate(inv.issue_date)}</TableCell>
+                    <TableCell>{formatDisplayDate(inv.due_date)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(inv.total)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(inv.amount_paid)}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(inv.outstanding)}</TableCell>

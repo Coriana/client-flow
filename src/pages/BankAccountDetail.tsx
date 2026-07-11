@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { uuid } from '@/lib/utils';
 import { PermissionGate } from '@/components/PermissionGate';
 import { format } from 'date-fns';
@@ -98,6 +99,7 @@ export default function BankAccountDetail() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { formatCurrency } = useBranding();
 
   const [account, setAccount] = useState<BankAccount | null>(null);
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
@@ -580,7 +582,7 @@ export default function BankAccountDetail() {
           </CardHeader>
           <CardContent>
             <p className={`text-2xl font-bold ${Number(account.current_balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${Number(account.current_balance).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+              {formatCurrency(Number(account.current_balance))}
             </p>
           </CardContent>
         </Card>
@@ -590,7 +592,7 @@ export default function BankAccountDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              ${Number(account.opening_balance).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+              {formatCurrency(Number(account.opening_balance))}
             </p>
           </CardContent>
         </Card>
@@ -693,12 +695,12 @@ export default function BankAccountDetail() {
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            ${Math.abs(transaction.amount).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                            {formatCurrency(Math.abs(transaction.amount))}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           {transaction.balance_after != null
-                            ? `$${Number(transaction.balance_after).toLocaleString('en-AU', { minimumFractionDigits: 2 })}`
+                            ? formatCurrency(Number(transaction.balance_after))
                             : '-'}
                         </TableCell>
                         <TableCell>
@@ -1044,9 +1046,9 @@ export default function BankAccountDetail() {
                         <TableCell>{t.date}</TableCell>
                         <TableCell className="max-w-xs truncate">{t.description}</TableCell>
                         <TableCell className={`text-right ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ${Math.abs(t.amount).toFixed(2)}
+                          {formatCurrency(Math.abs(t.amount))}
                         </TableCell>
-                        <TableCell className="text-right">{t.balance != null ? `$${t.balance.toFixed(2)}` : '-'}</TableCell>
+                        <TableCell className="text-right">{t.balance != null ? formatCurrency(t.balance) : '-'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
