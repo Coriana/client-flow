@@ -11,6 +11,8 @@ const router = Router();
 const tableResourceMap: Record<string, string> = {
   clients: 'clients',
   client_contacts: 'clients',
+  contacts: 'clients',
+  contact_affiliations: 'clients',
   jobs: 'jobs',
   job_assignments: 'jobs',
   job_assets: 'jobs',
@@ -87,6 +89,14 @@ type QueryParamValue = string | ParsedQs | (string | ParsedQs)[] | undefined;
 const relationMappings: Record<string, Record<string, RelationConfig>> = {
   clients: {
     locations: { table: 'locations', fk: 'location_id' },
+  },
+  contacts: {
+    contact_affiliations: { table: 'contact_affiliations', direction: 'hasMany', localKey: 'id', remoteKey: 'contact_id' },
+  },
+  contact_affiliations: {
+    contacts: { table: 'contacts', fk: 'contact_id' },
+    clients: { table: 'clients', fk: 'client_id' },
+    vendors: { table: 'vendors', fk: 'vendor_id' },
   },
   jobs: {
     clients: { table: 'clients', fk: 'client_id' },

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { readFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -272,6 +273,91 @@ function runMigrations(database: Database.Database): void {
     }
   } catch (error) {
     console.error('Migration error (idx_jobs_job_number):', error);
+  }
+
+  // Migration: Backfill person-centric `contacts` / `contact_affiliations`
+  // from the legacy `client_contacts` table.
+  //
+  // client_contacts pinned a person to exactly one client forever. Contacts
+  // are now independent people (`contacts`) that can be affiliated with a
+  // client OR a vendor over a period of time (`contact_affiliations`), so a
+  // person changing companies is a new affiliation row, not a rewritten one.
+  //
+  // client_contacts is left untouched as a frozen archive - the app stops
+  // reading/writing it, but we don't delete historical data. This migration
+  // only runs once: it's guarded on `contacts` being empty, so re-running it
+  // (e.g. on every boot) after the first successful conversion is a no-op.
+  // On a fresh DB, client_contacts has no rows either, so nothing happens
+  // and nothing is logged.
+  try {
+    const { count: contactsCount } = database
+      .prepare('SELECT COUNT(*) as count FROM contacts')
+      .get() as { count: number };
+
+    if (contactsCount === 0) {
+      const legacyContacts = database
+        .prepare('SELECT * FROM client_contacts')
+        .all() as Array<{
+          id: string;
+          client_id: string;
+          name: string;
+          title: string | null;
+          email: string | null;
+          phone: string | null;
+          notes: string | null;
+          is_primary: number | null;
+          is_active: number | null;
+          created_at: string;
+          updated_at: string;
+        }>;
+
+      if (legacyContacts.length > 0) {
+        const insertContact = database.prepare(`
+          INSERT INTO contacts (id, name, email, phone, notes, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const insertAffiliation = database.prepare(`
+          INSERT INTO contact_affiliations
+            (id, contact_id, client_id, title, is_primary, start_date, end_date, notes, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const datePart = (timestamp: string) => timestamp.split(' ')[0].split('T')[0];
+
+        const migrateLegacyContacts = database.transaction((rows: typeof legacyContacts) => {
+          for (const row of rows) {
+            insertContact.run(
+              row.id,
+              row.name,
+              row.email,
+              row.phone,
+              row.notes,
+              row.is_active,
+              row.created_at,
+              row.updated_at,
+            );
+
+            insertAffiliation.run(
+              crypto.randomUUID(),
+              row.id,
+              row.client_id,
+              row.title,
+              row.is_primary,
+              datePart(row.created_at),
+              row.is_active ? null : datePart(row.updated_at),
+              row.notes,
+              row.created_at,
+              row.updated_at,
+            );
+          }
+        });
+
+        migrateLegacyContacts(legacyContacts);
+        console.log(`Migration: Converted ${legacyContacts.length} client_contacts row(s) into contacts + contact_affiliations`);
+      }
+    }
+  } catch (error) {
+    console.error('Migration error (contacts backfill from client_contacts):', error);
   }
 }
 

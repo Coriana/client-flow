@@ -199,6 +199,41 @@ CREATE TABLE IF NOT EXISTS vendor_contacts (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Contacts (people, independent of any one organisation). client_contacts
+-- remains as a frozen archive (see the migration in database.ts); new
+-- contact data lives here, affiliated to clients/vendors over time via
+-- contact_affiliations below.
+CREATE TABLE IF NOT EXISTS contacts (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  notes TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- A contact's affiliation with a client OR a vendor over a period of time.
+-- end_date NULL = current affiliation.
+CREATE TABLE IF NOT EXISTS contact_affiliations (
+  id TEXT PRIMARY KEY,
+  contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  client_id TEXT REFERENCES clients(id) ON DELETE CASCADE,
+  vendor_id TEXT REFERENCES vendors(id) ON DELETE CASCADE,
+  title TEXT,
+  is_primary INTEGER DEFAULT 0,
+  start_date TEXT,
+  end_date TEXT,
+  notes TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  CHECK ((client_id IS NULL) <> (vendor_id IS NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_contact_affiliations_contact ON contact_affiliations(contact_id);
+CREATE INDEX IF NOT EXISTS idx_contact_affiliations_client ON contact_affiliations(client_id);
+CREATE INDEX IF NOT EXISTS idx_contact_affiliations_vendor ON contact_affiliations(vendor_id);
+
 -- Trading Names
 CREATE TABLE IF NOT EXISTS trading_names (
   id TEXT PRIMARY KEY,
