@@ -189,9 +189,9 @@ export default function VendorSpendReport() {
             <ChartContainer config={chartConfig} className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
-                  <YAxis type="category" dataKey="name" width={120} />
-                  <Tooltip content={<ChartTooltipContent />} />
+                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
                   <Bar dataKey="spend" fill="var(--color-spend)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>

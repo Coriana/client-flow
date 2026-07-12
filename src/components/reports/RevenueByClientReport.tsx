@@ -148,9 +148,15 @@ export default function RevenueByClientReport() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} />
-                <YAxis type="category" dataKey="name" width={120} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                <Tooltip
+                  formatter={(v: number) => formatCurrency(v)}
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                  contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>

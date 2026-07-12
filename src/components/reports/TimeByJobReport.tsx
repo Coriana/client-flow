@@ -225,12 +225,17 @@ export default function TimeByJobReport() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
+                  <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                  <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted))' }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }}
+                    labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                    itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  />
+                  <Legend formatter={(value) => <span className="text-foreground">{value}</span>} />
                   <Bar dataKey="billable" name="Billable" fill="hsl(var(--primary))" stackId="a" />
-                  <Bar dataKey="nonBillable" name="Non-Billable" fill="hsl(var(--muted))" stackId="a" />
+                  <Bar dataKey="nonBillable" name="Non-Billable" fill="hsl(var(--muted-foreground))" stackId="a" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
