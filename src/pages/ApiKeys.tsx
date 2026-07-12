@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, apiFetch } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -60,8 +60,6 @@ const AVAILABLE_SCOPES = [
   { value: 'expenses', label: 'Expenses' },
   { value: 'banking', label: 'Banking' },
 ];
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export default function ApiKeys() {
   const { user } = useAuth();
@@ -189,13 +187,11 @@ export default function ApiKeys() {
       }
 
       const keyUserId = isOwner && newKeyUserId ? newKeyUserId : user?.id;
-      const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(`${API_URL}/auth/api-keys`, {
+      const response = await apiFetch('/auth/api-keys', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: newKeyName,

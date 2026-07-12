@@ -30,7 +30,9 @@ export default function Login() {
         variant: 'destructive',
       });
     } else {
-      navigate('/');
+      const redirect = sessionStorage.getItem('post_login_redirect');
+      sessionStorage.removeItem('post_login_redirect');
+      navigate(redirect && redirect.startsWith('/') ? redirect : '/');
     }
     setLoading(false);
   };

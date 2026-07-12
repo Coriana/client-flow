@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, apiFetch } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -262,25 +262,19 @@ export default function ImportBillCSVDialog({
       });
 
       // Call the bill-import API
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/bill-import`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            vendor_id: vendorId,
-            vendor_name: vendorName,
-            csv_data: hasHeaderRow ? rawData : [headers, ...rawData],
-            column_mapping: apiColumnMapping,
-            file_name: fileName,
-          }),
-        }
-      );
+      const response = await apiFetch('/bill-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vendor_id: vendorId,
+          vendor_name: vendorName,
+          csv_data: hasHeaderRow ? rawData : [headers, ...rawData],
+          column_mapping: apiColumnMapping,
+          file_name: fileName,
+        }),
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -371,19 +365,13 @@ export default function ImportBillCSVDialog({
       }));
 
       // Update the session with current selections
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const updateResponse = await fetch(
-        `${import.meta.env.VITE_API_URL}/bill-import/${sessionId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ matched_rows: updatedRows }),
-        }
-      );
+      const updateResponse = await apiFetch(`/bill-import/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ matched_rows: updatedRows }),
+      });
 
       if (!updateResponse.ok) {
         const error = await updateResponse.json();
@@ -391,20 +379,16 @@ export default function ImportBillCSVDialog({
       }
 
       // Confirm the import
-      const confirmResponse = await fetch(
-        `${import.meta.env.VITE_API_URL}/bill-import/${sessionId}/confirm`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ 
-            save_mappings: true,
-            date: todayLocal()
-          }),
-        }
-      );
+      const confirmResponse = await apiFetch(`/bill-import/${sessionId}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          save_mappings: true,
+          date: todayLocal()
+        }),
+      });
 
       if (!confirmResponse.ok) {
         const error = await confirmResponse.json();

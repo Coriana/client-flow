@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, apiFetch } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -156,11 +156,10 @@ export default function Invoices() {
     toast({ title: 'Generating PDF...', description: `Preparing ${selectedInvoices.length} invoice(s)` });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/functions/generate-invoices-pdf`, {
+      const response = await apiFetch('/functions/generate-invoices-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({ invoiceIds: selectedInvoices.map(inv => inv.id) })
       });
@@ -204,11 +203,10 @@ export default function Invoices() {
     let sent = 0;
     let failures: { invoiceNumber: string; reason: string }[] = [];
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/mail/send-invoices`, {
+      const response = await apiFetch('/mail/send-invoices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({ invoiceIds: selectedNonDrafts.map(inv => inv.id) })
       });
