@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, AlertTriangle, Package } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Item = Tables<'items'>;
@@ -47,7 +49,9 @@ export default function Inventory() {
     item.category?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const lowStockItems = items.filter(item => 
+  const pagination = usePagination(filteredItems);
+
+  const lowStockItems = items.filter(item =>
     (item.current_stock || 0) <= (item.reorder_level || 0) && item.is_active
   );
 
@@ -164,7 +168,7 @@ export default function Inventory() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredItems.map((item) => {
+                  pagination.pageItems.map((item) => {
                     const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
                     return (
                       <TableRow key={item.id}>
@@ -221,7 +225,7 @@ export default function Inventory() {
                 </Button>
               </div>
             ) : (
-              filteredItems.map((item) => {
+              pagination.pageItems.map((item) => {
                 const isLowStock = (item.current_stock || 0) <= (item.reorder_level || 0);
                 return (
                   <Link
@@ -249,6 +253,15 @@ export default function Inventory() {
               })
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

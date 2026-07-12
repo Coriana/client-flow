@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, HardDrive } from 'lucide-react';
 import { PermissionGate } from '@/components/PermissionGate';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -54,6 +56,8 @@ export default function Assets() {
     asset.serial_number?.toLowerCase().includes(search.toLowerCase()) ||
     asset.clients?.name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const pagination = usePagination(filteredAssets);
 
   return (
     <div className="space-y-6">
@@ -156,7 +160,7 @@ export default function Assets() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAssets.map((asset) => (
+                  pagination.pageItems.map((asset) => (
                     <TableRow key={asset.id}>
                       <TableCell className="font-mono text-sm">{asset.asset_tag}</TableCell>
                       <TableCell>
@@ -208,7 +212,7 @@ export default function Assets() {
                 </Button>
               </div>
             ) : (
-              filteredAssets.map((asset) => (
+              pagination.pageItems.map((asset) => (
                 <Link
                   key={asset.id}
                   to={`/assets/${asset.id}`}
@@ -236,6 +240,15 @@ export default function Assets() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

@@ -15,6 +15,8 @@ import { Users, UserPlus, Shield, Mail, Search, Building, Briefcase } from 'luci
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Role {
   id: string;
@@ -114,6 +116,8 @@ export default function Team() {
       member.role_name.toLowerCase().includes(search)
     );
   });
+
+  const pagination = usePagination(filteredMembers);
 
   async function handleInvite() {
     if (!inviteEmail.trim()) {
@@ -327,7 +331,7 @@ export default function Team() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                filteredMembers.map((member) => (
+                pagination.pageItems.map((member) => (
                   <TableRow
                     key={member.id}
                     className="cursor-pointer hover:bg-accent"
@@ -413,7 +417,7 @@ export default function Team() {
                 </Button>
               </div>
             ) : (
-            filteredMembers.map((member) => (
+            pagination.pageItems.map((member) => (
               <Link
                 key={member.id}
                 to={`/team/${member.id}`}
@@ -435,6 +439,15 @@ export default function Team() {
             ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
             </>
           )}
         </CardContent>

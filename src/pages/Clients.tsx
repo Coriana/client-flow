@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Users } from 'lucide-react';
 import { PermissionGate } from '@/components/PermissionGate';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Client = Tables<'clients'>;
@@ -66,6 +68,8 @@ export default function Clients() {
     client.primary_contact?.email?.toLowerCase().includes(search.toLowerCase()) ||
     client.primary_contact?.name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const pagination = usePagination(filteredClients);
 
   return (
     <div className="space-y-6">
@@ -166,7 +170,7 @@ export default function Clients() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredClients.map((client) => (
+                  pagination.pageItems.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell>
                         <Link
@@ -206,7 +210,7 @@ export default function Clients() {
                 </Button>
               </div>
             ) : (
-              filteredClients.map((client) => (
+              pagination.pageItems.map((client) => (
                 <Link
                   key={client.id}
                   to={`/clients/${client.id}`}
@@ -234,6 +238,15 @@ export default function Clients() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

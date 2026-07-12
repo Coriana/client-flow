@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import { formatDisplayDate, todayLocal } from '@/lib/dates';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'> & { clients?: { name: string; contact_email?: string; email?: string } | null };
@@ -85,6 +87,8 @@ export default function Invoices() {
     inv.clients?.name?.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const pagination = usePagination(filteredInvoices);
+
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
@@ -95,12 +99,21 @@ export default function Invoices() {
     setSelectedIds(newSelected);
   };
 
+  // Select-all is scoped to the current page: it reflects and toggles only
+  // the ids visible on this page, leaving selections on other pages intact.
+  const pageIds = pagination.pageItems.map(inv => inv.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredInvoices.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredInvoices.map(inv => inv.id)));
-    }
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
   };
 
   function clearFilters() {
@@ -374,7 +387,7 @@ export default function Invoices() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedIds.size === filteredInvoices.length && filteredInvoices.length > 0}
+                      checked={allOnPageSelected}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
@@ -400,7 +413,7 @@ export default function Invoices() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInvoices.map((invoice) => (
+                  pagination.pageItems.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell>
                         <Checkbox
@@ -445,7 +458,7 @@ export default function Invoices() {
                 </Button>
               </div>
             ) : (
-              filteredInvoices.map((invoice) => (
+              pagination.pageItems.map((invoice) => (
                 <div key={invoice.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
                   <Checkbox
                     className="mt-1"
@@ -475,6 +488,15 @@ export default function Invoices() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

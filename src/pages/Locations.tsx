@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, MapPin, Building2, Phone, Mail } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Location {
   id: string;
@@ -87,6 +89,8 @@ export default function Locations() {
 
     return matchesSearch && matchesType;
   });
+
+  const pagination = usePagination(filteredLocations);
 
   function formatAddress(location: Location) {
     const parts = [location.address_line1, location.city, location.state, location.postcode].filter(Boolean);
@@ -243,7 +247,7 @@ export default function Locations() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredLocations.map((location) => (
+                      pagination.pageItems.map((location) => (
                         <TableRow
                           key={location.id}
                           className="cursor-pointer hover:bg-muted/50"
@@ -312,7 +316,7 @@ export default function Locations() {
                 </Button>
               </div>
             ) : (
-              filteredLocations.map((location) => (
+              pagination.pageItems.map((location) => (
                 <Link
                   key={location.id}
                   to={`/locations/${location.id}`}
@@ -332,6 +336,15 @@ export default function Locations() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

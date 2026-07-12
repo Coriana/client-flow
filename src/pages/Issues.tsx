@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, AlertCircle } from 'lucide-react';
 import { formatDisplayDate } from '@/lib/dates';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Issue = Tables<'issues'> & { clients?: { name: string } | null };
@@ -29,6 +31,8 @@ export default function Issues() {
   });
 
   const filteredIssues = issues.filter(i => i.title.toLowerCase().includes(search.toLowerCase()));
+
+  const pagination = usePagination(filteredIssues);
 
   return (
     <div className="space-y-6">
@@ -80,7 +84,7 @@ export default function Issues() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredIssues.map(issue => (
+                  pagination.pageItems.map(issue => (
                     <TableRow key={issue.id}>
                       <TableCell><Link to={`/issues/${issue.id}`} className="font-medium hover:underline">{issue.title}</Link></TableCell>
                       <TableCell>{issue.clients?.name || '-'}</TableCell>
@@ -102,7 +106,7 @@ export default function Issues() {
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button>
               </div>
             ) : (
-              filteredIssues.map(issue => (
+              pagination.pageItems.map(issue => (
                 <Link key={issue.id} to={`/issues/${issue.id}`} className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted">
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-medium">{issue.title}</span>
@@ -119,6 +123,15 @@ export default function Issues() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>
