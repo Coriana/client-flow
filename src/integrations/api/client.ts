@@ -3,14 +3,18 @@
  * This allows minimal changes to existing code while using a local SQLite backend
  */
 
+import { toast } from 'sonner';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Token management
 let authToken: string | null = localStorage.getItem('auth_token');
 let authStateListeners: ((event: string, session: any) => void)[] = [];
+let sessionExpiredHandled = false;
 
 function setAuthToken(token: string | null) {
   authToken = token;
+  if (token) sessionExpiredHandled = false;
   if (token) {
     localStorage.setItem('auth_token', token);
   } else {
@@ -26,6 +30,46 @@ function getAuthHeaders(): Record<string, string> {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
   return headers;
+}
+
+// Handle a 401 from any request: tear down the session, notify listeners so
+// ProtectedRoute redirects to /login, and let the user know why. Deduped so a
+// burst of concurrent 401s (e.g. several in-flight requests) only fires once.
+function handleUnauthorized() {
+  if (!authToken) return;
+  if (sessionExpiredHandled) return;
+  sessionExpiredHandled = true;
+
+  try {
+    const here = window.location.pathname + window.location.search;
+    if (!here.startsWith('/login') && !here.startsWith('/signup')) {
+      sessionStorage.setItem('post_login_redirect', here);
+    }
+  } catch {
+    // sessionStorage unavailable (e.g. privacy mode) - not worth failing over
+  }
+
+  setAuthToken(null);
+  authStateListeners.forEach((l) => l('SIGNED_OUT', null));
+  toast.error('Your session has expired. Please sign in again.');
+
+  setTimeout(() => {
+    sessionExpiredHandled = false;
+  }, 2000);
+}
+
+// Fetch wrapper for call sites that need direct access to the Response
+// (blobs, custom status handling) instead of the QueryBuilder. Attaches the
+// bearer token automatically and reacts to 401s the same way QueryBuilder does.
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const url = path.startsWith('http') ? path : `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const headers = new Headers(options.headers || {});
+  if (authToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${authToken}`);
+  }
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) handleUnauthorized();
+  return response;
 }
 
 // Response type matching Supabase
@@ -257,6 +301,7 @@ class QueryBuilder<T = any> {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        if (response.status === 401) handleUnauthorized();
         return { data: null, error: { message: errorData.error || response.statusText } };
       }
 

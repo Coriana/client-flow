@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, apiFetch } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,6 @@ interface MyProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export default function MyProfileDialog({ open, onOpenChange }: MyProfileDialogProps) {
   const { toast } = useToast();
@@ -133,12 +131,10 @@ export default function MyProfileDialog({ open, onOpenChange }: MyProfileDialogP
 
     setChangingPassword(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/auth/change-password`, {
+      const response = await apiFetch('/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,

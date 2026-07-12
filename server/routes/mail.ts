@@ -264,7 +264,7 @@ router.post('/send-invoices', authMiddleware, async (req: AuthRequest, res: Resp
 router.post('/send-invite', authMiddleware, async (req: AuthRequest, res: Response) => {
   const requireWrite = requirePermission('team', 'write');
   await requireWrite(req, res, async () => {
-    const { email } = req.body;
+    const { email, inviteUrl } = req.body;
 
     if (!email) {
       res.status(400).json({ error: 'Email is required' });
@@ -277,9 +277,11 @@ router.post('/send-invite', authMiddleware, async (req: AuthRequest, res: Respon
     // Get inviter name
     const inviterName = req.user?.full_name || req.user?.email || 'Team Admin';
 
-    // Build signup URL (use origin from request or env)
+    // Build signup URL: prefer the caller-supplied invite link (carries the
+    // invite token so the recipient can actually accept it), falling back to
+    // a token-less signup page if none was given.
     const origin = process.env.APP_URL || 'http://localhost:8080';
-    const signupUrl = `${origin}/signup`;
+    const signupUrl = (typeof inviteUrl === 'string' && inviteUrl) ? inviteUrl : `${origin}/signup`;
 
     const result = await sendInviteEmail(email, inviterName, companyName, signupUrl);
 

@@ -8,4 +8,4 @@
  * import { supabase } from "@/integrations/supabase/client";
  */
 
-export { supabase } from '@/integrations/api/client';
+export { supabase, apiFetch } from '@/integrations/api/client';

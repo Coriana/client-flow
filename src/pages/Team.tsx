@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, apiFetch } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Users, UserPlus, Shield, Mail, Search, Building, Briefcase } from 'lucide-react';
+import { Users, UserPlus, Shield, Mail, Search, Building, Briefcase, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/EmptyState';
@@ -50,6 +50,8 @@ export default function Team() {
   const [inviteRoleId, setInviteRoleId] = useState('');
   const [inviting, setInviting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pendingInvite, setPendingInvite] = useState<{ email: string; url: string; emailed: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const canManageTeam = canWrite('team');
 
@@ -126,37 +128,64 @@ export default function Team() {
     }
 
     setInviting(true);
-    
+
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/mail/send-invite`, {
+      const createResponse = await apiFetch('/auth/users', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({ email: inviteEmail })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, role_id: inviteRoleId || undefined }),
       });
 
-      const data = await response.json();
+      const data = await createResponse.json();
 
-      if (!response.ok) {
+      if (!createResponse.ok) {
         toast({
-          title: 'Email not configured',
-          description: `SMTP not set up. Ask ${inviteEmail} to sign up at your app URL, then assign their role here.`,
+          title: 'Error',
+          description: data.error || 'Failed to create user',
+          variant: 'destructive',
         });
-      } else {
-        toast({ title: 'Success', description: `Invitation sent to ${inviteEmail}` });
-        setInviteEmail('');
+        return;
       }
+
+      const inviteUrl = `${window.location.origin}/signup?token=${data.invite_token}`;
+
+      const emailResponse = await apiFetch('/mail/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, inviteUrl }),
+      });
+
+      const emailed = emailResponse.ok;
+
+      setPendingInvite({ email: inviteEmail, url: inviteUrl, emailed });
+
+      if (emailed) {
+        toast({ title: 'Success', description: `Invitation emailed to ${inviteEmail}` });
+      } else {
+        toast({
+          title: 'Email not sent',
+          description: "Email isn't set up — copy the invite link below to send it yourself.",
+        });
+      }
+
+      fetchData();
+      setInviteEmail('');
     } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message || 'Failed to send invite',
-        variant: 'destructive'
+        variant: 'destructive',
       });
+    } finally {
+      setInviting(false);
     }
-    
-    setInviting(false);
+  }
+
+  async function handleCopyInviteLink() {
+    if (!pendingInvite) return;
+    await navigator.clipboard.writeText(pendingInvite.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   async function handleUpdateRole(userId: string, newRoleId: string) {
@@ -216,7 +245,8 @@ export default function Team() {
               Invite Team Member
             </CardTitle>
             <CardDescription>
-              New members will need to sign up with the email you provide. You can then set their role.
+              Invited members get a link to set their password — it's emailed automatically if
+              SMTP is configured, otherwise you can copy it and share it with them yourself.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -254,6 +284,33 @@ export default function Team() {
                 {inviting ? 'Inviting...' : 'Invite'}
               </Button>
             </div>
+
+            {pendingInvite && (
+              <div className="mt-4 rounded-lg border bg-muted/50 p-4 space-y-2">
+                <p className="text-sm font-medium">Invite link for {pendingInvite.email}</p>
+                <p className="text-sm text-muted-foreground">
+                  {pendingInvite.emailed
+                    ? 'This link was also emailed to them.'
+                    : "Email isn't configured — share this link with them manually."}
+                </p>
+                <div className="flex gap-2">
+                  <Input readOnly value={pendingInvite.url} className="font-mono text-xs" />
+                  <Button variant="outline" size="sm" onClick={handleCopyInviteLink}>
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

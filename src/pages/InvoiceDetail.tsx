@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, apiFetch } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -553,11 +553,10 @@ export default function InvoiceDetail() {
     toast({ title: 'Generating PDF...', description: 'Please wait' });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/functions/generate-invoice-pdf`, {
+      const response = await apiFetch('/functions/generate-invoice-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({ invoiceId: id })
       });

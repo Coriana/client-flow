@@ -143,4 +143,36 @@ describe('auth', () => {
 
     expect(res.status).toBe(400);
   });
+
+  // The Team.tsx invite flow creates the user with a role_id (no password) in
+  // one call, then the invitee hits accept-invite with the token from the
+  // response. This proves that round trip end-to-end, including that the
+  // invite is single-use (cleared) once redeemed.
+  it('creates an invited user with a role_id and completes the invite -> accept round trip', async () => {
+    const token = await login(app);
+
+    const createRes = await request(app)
+      .post('/api/auth/users')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ email: 'staffer@example.com', full_name: 'Staffer', role_id: 'role-staff' });
+
+    expect(createRes.status).toBe(200);
+    expect(createRes.body.invite_token).toBeTruthy();
+
+    const inviteToken = createRes.body.invite_token;
+
+    const acceptRes = await request(app)
+      .post('/api/auth/accept-invite')
+      .send({ token: inviteToken, password: 'chosen-password-1' });
+
+    expect(acceptRes.status).toBe(200);
+    expect(acceptRes.body.token).toBeTruthy();
+
+    // The invite is cleared on redemption: reusing the same token now fails.
+    const reuseRes = await request(app)
+      .post('/api/auth/accept-invite')
+      .send({ token: inviteToken, password: 'another-password-2' });
+
+    expect(reuseRes.status).toBe(400);
+  });
 });
