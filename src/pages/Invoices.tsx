@@ -199,50 +199,41 @@ export default function Invoices() {
 
     toast({ title: 'Sending emails...', description: `Sending ${selectedNonDrafts.length} invoice(s)` });
 
-    let successCount = 0;
-    const failures: { invoiceNumber: string; reason: string }[] = [];
+    // One request: the server loops over the ids, resolves each client's email,
+    // sends, and returns a per-invoice summary.
+    let sent = 0;
+    let failures: { invoiceNumber: string; reason: string }[] = [];
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/mail/send-invoices`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ invoiceIds: selectedNonDrafts.map(inv => inv.id) })
+      });
 
-    for (const inv of selectedNonDrafts) {
-      try {
-        // Get client contact email
-        const clientEmail = inv.clients?.contact_email || inv.clients?.email;
-        if (!clientEmail) {
-          failures.push({ invoiceNumber: inv.invoice_number, reason: 'no client email' });
-          continue;
-        }
-
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/mail/send-invoice`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            invoiceId: inv.id,
-            recipientEmail: clientEmail
-          })
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to send');
-        }
-
-        successCount++;
-      } catch (error: any) {
-        failures.push({ invoiceNumber: inv.invoice_number, reason: error.message });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send invoices');
       }
+
+      sent = result.sent ?? 0;
+      failures = result.failures ?? [];
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
     }
 
     if (failures.length === 0) {
-      toast({ title: 'Success', description: `Sent ${successCount} invoice(s)` });
+      toast({ title: 'Success', description: `Sent ${sent} invoice(s)` });
     } else {
       const shown = failures.slice(0, 3).map(f => `${f.invoiceNumber}: ${f.reason}`);
       if (failures.length > 3) {
         shown.push(`…and ${failures.length - 3} more`);
       }
       toast({
-        title: `Sent ${successCount} of ${selectedNonDrafts.length} invoices`,
+        title: `Sent ${sent} of ${selectedNonDrafts.length} invoices`,
         description: shown.join('\n'),
         variant: 'destructive',
       });
