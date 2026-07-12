@@ -22,7 +22,7 @@ import {
 import { Plus, Search, ChevronDown, Send, Download, Mail, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
-import { formatDisplayDate } from '@/lib/dates';
+import { formatDisplayDate, todayLocal } from '@/lib/dates';
 import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -140,27 +140,36 @@ export default function Invoices() {
       return;
     }
 
-    toast({ title: 'Generating PDFs...', description: `Downloading ${selectedInvoices.length} invoice(s)` });
+    toast({ title: 'Generating PDF...', description: `Preparing ${selectedInvoices.length} invoice(s)` });
 
-    for (const inv of selectedInvoices) {
-      try {
-        const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-          body: { invoiceId: inv.id }
-        });
-        
-        if (error) throw error;
-        
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(data.html);
-          printWindow.document.close();
-          printWindow.onload = () => {
-            printWindow.print();
-          };
-        }
-      } catch (error: any) {
-        toast({ title: 'Error', description: `Failed to generate PDF for ${inv.invoice_number}: ${error.message}`, variant: 'destructive' });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/functions/generate-invoices-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ invoiceIds: selectedInvoices.map(inv => inv.id) })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `invoices-${todayLocal()}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Success', description: `Downloaded ${selectedInvoices.length} invoice(s) as one PDF` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   }
 
@@ -178,19 +187,14 @@ export default function Invoices() {
     toast({ title: 'Sending emails...', description: `Sending ${selectedNonDrafts.length} invoice(s)` });
 
     let successCount = 0;
-    let errorCount = 0;
+    const failures: { invoiceNumber: string; reason: string }[] = [];
 
     for (const inv of selectedNonDrafts) {
       try {
         // Get client contact email
         const clientEmail = inv.clients?.contact_email || inv.clients?.email;
         if (!clientEmail) {
-          errorCount++;
-          toast({ 
-            title: 'Warning', 
-            description: `No email for client on invoice ${inv.invoice_number}`, 
-            variant: 'destructive' 
-          });
+          failures.push({ invoiceNumber: inv.invoice_number, reason: 'no client email' });
           continue;
         }
 
@@ -200,7 +204,7 @@ export default function Invoices() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             invoiceId: inv.id,
             recipientEmail: clientEmail
           })
@@ -213,19 +217,21 @@ export default function Invoices() {
 
         successCount++;
       } catch (error: any) {
-        errorCount++;
-        toast({ 
-          title: 'Error', 
-          description: `Failed to send ${inv.invoice_number}: ${error.message}`, 
-          variant: 'destructive' 
-        });
+        failures.push({ invoiceNumber: inv.invoice_number, reason: error.message });
       }
     }
 
-    if (successCount > 0) {
-      toast({ 
-        title: 'Success', 
-        description: `Sent ${successCount} invoice(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}` 
+    if (failures.length === 0) {
+      toast({ title: 'Success', description: `Sent ${successCount} invoice(s)` });
+    } else {
+      const shown = failures.slice(0, 3).map(f => `${f.invoiceNumber}: ${f.reason}`);
+      if (failures.length > 3) {
+        shown.push(`…and ${failures.length - 3} more`);
+      }
+      toast({
+        title: `Sent ${successCount} of ${selectedNonDrafts.length} invoices`,
+        description: shown.join('\n'),
+        variant: 'destructive',
       });
     }
   }

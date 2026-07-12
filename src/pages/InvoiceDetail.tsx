@@ -551,23 +551,33 @@ export default function InvoiceDetail() {
 
   async function handleDownloadPdf() {
     toast({ title: 'Generating PDF...', description: 'Please wait' });
-    
+
     try {
-      const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-        body: { invoiceId: id }
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/functions/generate-invoice-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ invoiceId: id })
       });
-      
-      if (error) throw error;
-      
-      // Create blob from HTML and open print dialog
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(data.html);
-        printWindow.document.close();
-        printWindow.onload = () => {
-          printWindow.print();
-        };
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${invoice.invoice_number}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Success', description: 'PDF downloaded' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -772,10 +782,10 @@ export default function InvoiceDetail() {
                             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Asset Rental</span>
                           )}
                           {line.timesheet_id && (
-                            <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded">Time</span>
+                            <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">Time</span>
                           )}
                           {line.expense_id && (
-                            <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded">Expense</span>
+                            <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded">Expense</span>
                           )}
                         </div>
                         <Input
@@ -898,7 +908,7 @@ export default function InvoiceDetail() {
                 <span>{formatCurrency(invoice.total || 0)}</span>
               </div>
               {clientCredit > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-green-600 dark:text-green-400">
                   <span>Client Credit</span>
                   <span>-{formatCurrency(clientCredit)}</span>
                 </div>

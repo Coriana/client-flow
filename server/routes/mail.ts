@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
 import { queryOne } from '../db/database.js';
 import { authMiddleware, AuthRequest, requirePermission } from '../middleware/auth.js';
-import { sendInvoiceEmail, sendInviteEmail } from '../utils/email.js';
+import { sendInvoiceEmail, sendInviteEmail, escapeHtml } from '../utils/email.js';
+import { makeCurrencyFormatter } from '../utils/invoicePdf.js';
+import { formatDisplayDate } from '../utils/dates.js';
 
 const router = Router();
 
@@ -59,36 +61,37 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
       companyDisplayName = `${company.name} trading as ${company.trading_name}`;
     }
 
-    const formatCurrency = (amount: number) =>
-      new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
+    const formatCurrency = makeCurrencyFormatter(company);
 
-    const formatDate = (date: string) =>
-      new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const dateLocale = /^[a-z]{2}(-[A-Z]{2})?$/.test(company?.currency_locale || '')
+      ? company.currency_locale
+      : 'en-AU';
+    const formatDate = (date: string) => formatDisplayDate(date, dateLocale);
 
     // Generate invoice HTML
     const invoiceHtml = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; font-size: 14px; line-height: 1.5; padding: 20px; max-width: 800px; margin: 0 auto;">
   <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
     <div>
-      <div style="font-size: 18px; font-weight: 700;">${companyDisplayName}</div>
+      <div style="font-size: 18px; font-weight: 700;">${escapeHtml(companyDisplayName)}</div>
       <div style="font-size: 12px; color: #666; margin-top: 8px;">
-        ${company?.address || ''}<br>
-        ${company?.email ? `Email: ${company.email}` : ''}<br>
-        ${company?.phone ? `Phone: ${company.phone}` : ''}<br>
-        ${company?.abn ? `ABN: ${company.abn}` : ''}
+        ${escapeHtml(company?.address || '')}<br>
+        ${company?.email ? `Email: ${escapeHtml(company.email)}` : ''}<br>
+        ${company?.phone ? `Phone: ${escapeHtml(company.phone)}` : ''}<br>
+        ${company?.abn ? `ABN: ${escapeHtml(company.abn)}` : ''}
       </div>
     </div>
     <div style="text-align: right;">
       <div style="font-size: 32px; font-weight: 700; color: #1a1a1a;">INVOICE</div>
-      <div style="font-size: 14px; color: #666; margin-top: 4px;">${invoice.invoice_number}</div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">${escapeHtml(invoice.invoice_number)}</div>
     </div>
   </div>
 
   <div style="display: flex; justify-content: space-between; margin-bottom: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
     <div>
       <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Bill To</div>
-      <div style="font-weight: 600;">${client?.name || 'Client'}</div>
-      <div style="color: #666; white-space: pre-line;">${client?.billing_address || ''}</div>
+      <div style="font-weight: 600;">${escapeHtml(client?.name || 'Client')}</div>
+      <div style="color: #666; white-space: pre-line;">${escapeHtml(client?.billing_address || '')}</div>
     </div>
     <div>
       <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Issue Date</div>
@@ -106,7 +109,7 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; width: 50%;">Description</th>
         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Unit Price</th>
-        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">${taxDisplayName}</th>
+        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(taxDisplayName)}</th>
         <th style="text-align: right; padding: 12px; border-bottom: 2px solid #1a1a1a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Total</th>
       </tr>
     </thead>
@@ -116,8 +119,8 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
             .map(
               (line: any) => `
         <tr>
-          <td style="padding: 12px; border-bottom: 1px solid #eee;">${line.description}</td>
-          <td style="padding: 12px; border-bottom: 1px solid #eee;">${line.quantity}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee;">${escapeHtml(line.description)}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee;">${escapeHtml(line.quantity)}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee;">${formatCurrency(line.unit_price)}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee;">${line.tax_rate || 0}%</td>
           <td style="text-align: right; padding: 12px; border-bottom: 1px solid #eee;">${formatCurrency(line.line_total)}</td>
@@ -136,7 +139,7 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
         <span>${formatCurrency(invoice.subtotal)}</span>
       </div>
       <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-        <span>${taxDisplayName}</span>
+        <span>${escapeHtml(taxDisplayName)}</span>
         <span>${formatCurrency(invoice.tax_total)}</span>
       </div>
       <div style="display: flex; justify-content: space-between; border-top: 2px solid #1a1a1a; font-size: 18px; font-weight: 700; margin-top: 8px; padding-top: 16px;">
@@ -165,7 +168,7 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
       ? `
   <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
     <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Notes</div>
-    <div>${invoice.notes}</div>
+    <div style="white-space: pre-line;">${escapeHtml(invoice.notes)}</div>
   </div>
   `
       : ''
