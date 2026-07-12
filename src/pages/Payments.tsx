@@ -28,6 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import { formatDisplayDate } from '@/lib/dates';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 import MakePaymentDialog from '@/components/MakePaymentDialog';
 import EditPurchaseDialog from '@/components/EditPurchaseDialog';
@@ -133,6 +135,9 @@ export default function Payments() {
     p.vendor_name?.toLowerCase().includes(search.toLowerCase()) ||
     p.reference?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const paymentsPagination = usePagination(filteredPayments);
+  const purchasesPagination = usePagination(filteredPurchases);
 
   const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalSpent = purchases.reduce((sum, p) => sum + p.total, 0);
@@ -346,7 +351,7 @@ export default function Payments() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredPayments.map((payment) => (
+                      paymentsPagination.pageItems.map((payment) => (
                         <TableRow key={payment.id}>
                           <TableCell>{formatDisplayDate(payment.date)}</TableCell>
                           <TableCell>
@@ -378,7 +383,7 @@ export default function Payments() {
                     </Button>
                   </div>
                 ) : (
-                  filteredPayments.map((payment) => (
+                  paymentsPagination.pageItems.map((payment) => (
                     <Link
                       key={payment.id}
                       to={`/invoices/${payment.invoice_id}`}
@@ -399,6 +404,15 @@ export default function Payments() {
                   ))
                 )}
               </div>
+
+              <ListPagination
+                page={paymentsPagination.page}
+                totalPages={paymentsPagination.totalPages}
+                total={paymentsPagination.total}
+                startIndex={paymentsPagination.startIndex}
+                endIndex={paymentsPagination.endIndex}
+                onPageChange={paymentsPagination.setPage}
+              />
             </>
           )}
         </TabsContent>
@@ -474,7 +488,7 @@ export default function Payments() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredPurchases.map((purchase) => (
+                      purchasesPagination.pageItems.map((purchase) => (
                         <TableRow key={purchase.id}>
                           <TableCell>{formatDisplayDate(purchase.date)}</TableCell>
                           <TableCell className="font-medium">{purchase.description}</TableCell>
@@ -518,7 +532,7 @@ export default function Payments() {
                     </Button>
                   </div>
                 ) : (
-                  filteredPurchases.map((purchase) => (
+                  purchasesPagination.pageItems.map((purchase) => (
                     <button
                       key={purchase.id}
                       type="button"
@@ -548,6 +562,15 @@ export default function Payments() {
                   ))
                 )}
               </div>
+
+              <ListPagination
+                page={purchasesPagination.page}
+                totalPages={purchasesPagination.totalPages}
+                total={purchasesPagination.total}
+                startIndex={purchasesPagination.startIndex}
+                endIndex={purchasesPagination.endIndex}
+                onPageChange={purchasesPagination.setPage}
+              />
             </>
           )}
         </TabsContent>

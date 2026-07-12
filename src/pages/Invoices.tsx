@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useBranding } from '@/contexts/BrandingContext';
 import { formatDisplayDate, todayLocal } from '@/lib/dates';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'> & { clients?: { name: string; contact_email?: string; email?: string } | null };
@@ -85,6 +87,8 @@ export default function Invoices() {
     inv.clients?.name?.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const pagination = usePagination(filteredInvoices);
+
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
@@ -95,12 +99,21 @@ export default function Invoices() {
     setSelectedIds(newSelected);
   };
 
+  // Select-all is scoped to the current page: it reflects and toggles only
+  // the ids visible on this page, leaving selections on other pages intact.
+  const pageIds = pagination.pageItems.map(inv => inv.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredInvoices.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredInvoices.map(inv => inv.id)));
-    }
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
   };
 
   function clearFilters() {
@@ -186,50 +199,41 @@ export default function Invoices() {
 
     toast({ title: 'Sending emails...', description: `Sending ${selectedNonDrafts.length} invoice(s)` });
 
-    let successCount = 0;
-    const failures: { invoiceNumber: string; reason: string }[] = [];
+    // One request: the server loops over the ids, resolves each client's email,
+    // sends, and returns a per-invoice summary.
+    let sent = 0;
+    let failures: { invoiceNumber: string; reason: string }[] = [];
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/mail/send-invoices`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ invoiceIds: selectedNonDrafts.map(inv => inv.id) })
+      });
 
-    for (const inv of selectedNonDrafts) {
-      try {
-        // Get client contact email
-        const clientEmail = inv.clients?.contact_email || inv.clients?.email;
-        if (!clientEmail) {
-          failures.push({ invoiceNumber: inv.invoice_number, reason: 'no client email' });
-          continue;
-        }
-
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/mail/send-invoice`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            invoiceId: inv.id,
-            recipientEmail: clientEmail
-          })
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to send');
-        }
-
-        successCount++;
-      } catch (error: any) {
-        failures.push({ invoiceNumber: inv.invoice_number, reason: error.message });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send invoices');
       }
+
+      sent = result.sent ?? 0;
+      failures = result.failures ?? [];
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
     }
 
     if (failures.length === 0) {
-      toast({ title: 'Success', description: `Sent ${successCount} invoice(s)` });
+      toast({ title: 'Success', description: `Sent ${sent} invoice(s)` });
     } else {
       const shown = failures.slice(0, 3).map(f => `${f.invoiceNumber}: ${f.reason}`);
       if (failures.length > 3) {
         shown.push(`…and ${failures.length - 3} more`);
       }
       toast({
-        title: `Sent ${successCount} of ${selectedNonDrafts.length} invoices`,
+        title: `Sent ${sent} of ${selectedNonDrafts.length} invoices`,
         description: shown.join('\n'),
         variant: 'destructive',
       });
@@ -374,7 +378,7 @@ export default function Invoices() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedIds.size === filteredInvoices.length && filteredInvoices.length > 0}
+                      checked={allOnPageSelected}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
@@ -400,7 +404,7 @@ export default function Invoices() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInvoices.map((invoice) => (
+                  pagination.pageItems.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell>
                         <Checkbox
@@ -445,7 +449,7 @@ export default function Invoices() {
                 </Button>
               </div>
             ) : (
-              filteredInvoices.map((invoice) => (
+              pagination.pageItems.map((invoice) => (
                 <div key={invoice.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
                   <Checkbox
                     className="mt-1"
@@ -475,6 +479,15 @@ export default function Invoices() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

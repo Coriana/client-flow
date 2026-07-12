@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Briefcase } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Job = Tables<'jobs'> & { clients?: { name: string } | null };
@@ -54,6 +56,8 @@ export default function Jobs() {
     job.job_number.toLowerCase().includes(search.toLowerCase()) ||
     job.clients?.name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const pagination = usePagination(filteredJobs);
 
   return (
     <div className="space-y-6">
@@ -150,7 +154,7 @@ export default function Jobs() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredJobs.map((job) => (
+                  pagination.pageItems.map((job) => (
                     <TableRow key={job.id}>
                       <TableCell className="font-mono text-sm">{job.job_number}</TableCell>
                       <TableCell>
@@ -185,7 +189,7 @@ export default function Jobs() {
                 </Button>
               </div>
             ) : (
-              filteredJobs.map((job) => (
+              pagination.pageItems.map((job) => (
                 <Link
                   key={job.id}
                   to={`/jobs/${job.id}`}
@@ -206,6 +210,15 @@ export default function Jobs() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

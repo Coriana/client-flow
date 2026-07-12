@@ -26,6 +26,8 @@ import { Plus, Search, Store, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PermissionGate } from '@/components/PermissionGate';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -106,6 +108,8 @@ export default function Vendors() {
     v.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
     v.contact_email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const pagination = usePagination(filteredVendors);
 
   const totalCredit = vendors.reduce((sum, v) => sum + (v.credit_balance || 0), 0);
 
@@ -269,7 +273,7 @@ export default function Vendors() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredVendors.map((vendor) => (
+                      pagination.pageItems.map((vendor) => (
                         <TableRow
                           key={vendor.id}
                           className="cursor-pointer hover:bg-muted/50"
@@ -312,7 +316,7 @@ export default function Vendors() {
                 </Button>
               </div>
             ) : (
-              filteredVendors.map((vendor) => (
+              pagination.pageItems.map((vendor) => (
                 <Link
                   key={vendor.id}
                   to={`/vendors/${vendor.id}`}
@@ -334,6 +338,15 @@ export default function Vendors() {
               ))
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>

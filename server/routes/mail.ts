@@ -7,34 +7,42 @@ import { formatDisplayDate } from '../utils/dates.js';
 
 const router = Router();
 
-// Send invoice via email
-router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const requireRead = requirePermission('invoices', 'read');
-  await requireRead(req, res, async () => {
-    const { invoiceId, recipientEmail } = req.body;
+/** Outcome of attempting to email a single invoice. */
+interface InvoiceSendOutcome {
+  ok: boolean;
+  /** Invoice number when known, else the requested id (for the failure list). */
+  invoiceNumber: string;
+  recipientEmail?: string;
+  reason?: string;
+}
 
-    if (!invoiceId) {
-      res.status(400).json({ error: 'Invoice ID is required' });
-      return;
-    }
+/**
+ * Build and send the email for one invoice. The recipient defaults to the
+ * invoice's client email (contact_email, falling back to email); pass
+ * `recipientEmailOverride` to send elsewhere. Never throws — every failure
+ * path returns an outcome with a human-readable `reason`, so callers
+ * (single send and bulk send) can report uniformly.
+ */
+async function sendInvoiceById(
+  invoiceId: string,
+  recipientEmailOverride?: string,
+): Promise<InvoiceSendOutcome> {
+  const invoiceResult = queryOne<any>('SELECT * FROM invoices WHERE id = ?', [invoiceId]);
+  if (invoiceResult.error || !invoiceResult.data) {
+    return { ok: false, invoiceNumber: invoiceId, reason: 'invoice not found' };
+  }
 
-    if (!recipientEmail) {
-      res.status(400).json({ error: 'Recipient email is required' });
-      return;
-    }
+  const invoice = invoiceResult.data;
+  const client = invoice.client_id
+    ? queryOne<any>('SELECT * FROM clients WHERE id = ?', [invoice.client_id]).data
+    : null;
 
-    // Get invoice
-    const invoiceResult = queryOne<any>('SELECT * FROM invoices WHERE id = ?', [invoiceId]);
-    if (invoiceResult.error || !invoiceResult.data) {
-      res.status(404).json({ error: 'Invoice not found' });
-      return;
-    }
+  const recipientEmail = recipientEmailOverride || client?.contact_email || client?.email;
+  if (!recipientEmail) {
+    return { ok: false, invoiceNumber: invoice.invoice_number, reason: 'no client email' };
+  }
 
-    const invoice = invoiceResult.data;
-    const client = invoice.client_id
-      ? queryOne<any>('SELECT * FROM clients WHERE id = ?', [invoice.client_id]).data
-      : null;
-    const job = invoice.job_id
+  const job = invoice.job_id
       ? queryOne<any>('SELECT * FROM jobs WHERE id = ?', [invoice.job_id]).data
       : null;
     const tradingName = job?.trading_name_id
@@ -176,20 +184,79 @@ router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Respo
 </div>
     `;
 
-    // Send email
-    const result = await sendInvoiceEmail(
-      recipientEmail,
-      invoice.invoice_number,
-      invoiceHtml,
-      companyDisplayName
-    );
+  // Send email
+  const result = await sendInvoiceEmail(
+    recipientEmail,
+    invoice.invoice_number,
+    invoiceHtml,
+    companyDisplayName
+  );
 
-    if (!result.success) {
-      res.status(500).json({ error: result.error || 'Failed to send email' });
+  if (!result.success) {
+    return { ok: false, invoiceNumber: invoice.invoice_number, reason: result.error || 'failed to send' };
+  }
+
+  return { ok: true, invoiceNumber: invoice.invoice_number, recipientEmail };
+}
+
+// Send a single invoice via email (recipient supplied by the caller).
+router.post('/send-invoice', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const requireRead = requirePermission('invoices', 'read');
+  await requireRead(req, res, async () => {
+    const { invoiceId, recipientEmail } = req.body;
+
+    if (!invoiceId) {
+      res.status(400).json({ error: 'Invoice ID is required' });
       return;
     }
 
-    res.json({ success: true, message: `Invoice sent to ${recipientEmail}` });
+    if (!recipientEmail) {
+      res.status(400).json({ error: 'Recipient email is required' });
+      return;
+    }
+
+    const outcome = await sendInvoiceById(invoiceId, recipientEmail);
+    if (outcome.ok) {
+      res.json({ success: true, message: `Invoice sent to ${outcome.recipientEmail}` });
+      return;
+    }
+    if (outcome.reason === 'invoice not found') {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+    res.status(500).json({ error: outcome.reason || 'Failed to send email' });
+  });
+});
+
+// Send many invoices in one request; the server loops so the client makes a
+// single round-trip and SMTP pacing stays server-side. Recipients are
+// resolved per invoice from its client. Always 200 with a per-invoice summary.
+router.post('/send-invoices', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const requireRead = requirePermission('invoices', 'read');
+  await requireRead(req, res, async () => {
+    const { invoiceIds } = req.body;
+    if (
+      !Array.isArray(invoiceIds) ||
+      invoiceIds.length === 0 ||
+      invoiceIds.length > 100 ||
+      !invoiceIds.every((id) => typeof id === 'string')
+    ) {
+      res.status(400).json({ error: 'invoiceIds must be a non-empty array of at most 100 invoice ids' });
+      return;
+    }
+
+    let sent = 0;
+    const failures: { invoiceNumber: string; reason: string }[] = [];
+    for (const invoiceId of invoiceIds) {
+      const outcome = await sendInvoiceById(invoiceId);
+      if (outcome.ok) {
+        sent += 1;
+      } else {
+        failures.push({ invoiceNumber: outcome.invoiceNumber, reason: outcome.reason || 'failed to send' });
+      }
+    }
+
+    res.json({ sent, failed: failures.length, total: invoiceIds.length, failures });
   });
 });
 

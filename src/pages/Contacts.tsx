@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, User } from 'lucide-react';
 import { PermissionGate } from '@/components/PermissionGate';
 import { EmptyState } from '@/components/EmptyState';
+import { ListPagination } from '@/components/ListPagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Contact = Tables<'contacts'>;
@@ -80,6 +82,8 @@ export default function Contacts() {
       orgNames.includes(query)
     );
   });
+
+  const pagination = usePagination(filteredContacts);
 
   return (
     <div className="space-y-6">
@@ -180,7 +184,7 @@ export default function Contacts() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredContacts.map((contact) => {
+                  pagination.pageItems.map((contact) => {
                     const orgLabel = organisationLabel(contact);
                     const isActive = contact.is_active !== false;
                     return (
@@ -221,7 +225,7 @@ export default function Contacts() {
                 </Button>
               </div>
             ) : (
-              filteredContacts.map((contact) => {
+              pagination.pageItems.map((contact) => {
                 const orgLabel = organisationLabel(contact);
                 const isActive = contact.is_active !== false;
                 return (
@@ -248,6 +252,15 @@ export default function Contacts() {
               })
             )}
           </div>
+
+          <ListPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+          />
         </>
       )}
     </div>
