@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { ArrowLeft, Save, Upload, History, ChevronDown, ChevronUp, Package, ArrowDownCircle, ArrowUpCircle, RefreshCw } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -49,6 +50,7 @@ export default function InventoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const isNew = id === 'new';
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -182,11 +184,6 @@ export default function InventoryDetail() {
     setUploading(false);
   }
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
-
   const pricesChanged = !isNew && (
     (item.unit_cost || 0) !== originalPrices.unit_cost ||
     (item.sales_price || 0) !== originalPrices.sales_price
@@ -228,10 +225,10 @@ export default function InventoryDetail() {
 
   const getMovementIcon = (type: string) => {
     switch (type) {
-      case 'purchase': return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
-      case 'consume': return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
-      case 'adjust': return <RefreshCw className="h-4 w-4 text-blue-500" />;
-      case 'return': return <ArrowDownCircle className="h-4 w-4 text-amber-500" />;
+      case 'purchase': return <ArrowDownCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
+      case 'consume': return <ArrowUpCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
+      case 'adjust': return <RefreshCw className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
+      case 'return': return <ArrowDownCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
       default: return <Package className="h-4 w-4 text-muted-foreground" />;
     }
   };
@@ -415,7 +412,7 @@ export default function InventoryDetail() {
                       {record.type === 'price_change' ? (
                         <>
                           <div className="flex gap-3">
-                            <RefreshCw className="h-4 w-4 text-blue-500 mt-1" />
+                            <RefreshCw className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-1" />
                             <div>
                               <div className="text-sm font-medium flex items-center gap-2">
                                 Price Change
@@ -434,10 +431,10 @@ export default function InventoryDetail() {
                           </div>
                           <div className="text-right text-sm">
                             {(record.oldCost !== record.newCost) && (
-                              <div>Cost: {formatCurrency(record.oldCost)} → {formatCurrency(record.newCost)}</div>
+                              <div>Cost: {formatCurrency(record.oldCost ?? 0)} → {formatCurrency(record.newCost ?? 0)}</div>
                             )}
                             {(record.oldPrice !== record.newPrice) && (
-                              <div>Price: {formatCurrency(record.oldPrice)} → {formatCurrency(record.newPrice)}</div>
+                              <div>Price: {formatCurrency(record.oldPrice ?? 0)} → {formatCurrency(record.newPrice ?? 0)}</div>
                             )}
                           </div>
                         </>
@@ -465,12 +462,12 @@ export default function InventoryDetail() {
                             </div>
                           </div>
                           <div className="text-right text-sm">
-                            <div className={record.movementType === 'consume' ? 'text-red-600' : 'text-green-600'}>
+                            <div className={record.movementType === 'consume' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
                               {record.movementType === 'consume' ? '-' : '+'}{record.quantity} {item.unit}
                             </div>
                             {record.unitCost && (
                               <div className="text-muted-foreground text-xs">
-                                @ {formatCurrency(record.unitCost)}/{item.unit}
+                                @ {formatCurrency(record.unitCost ?? 0)}/{item.unit}
                               </div>
                             )}
                           </div>

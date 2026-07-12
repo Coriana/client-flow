@@ -21,7 +21,7 @@ export function CompletionStep({ wizardData, onComplete }: CompletionStepProps) 
     { label: 'Trading as', value: wizardData.tradingName.name, show: !!wizardData.tradingName.name },
     { label: 'Tax rate', value: `${wizardData.taxRate.name} (${wizardData.taxRate.rate}%)`, show: !!wizardData.taxRate.name },
     { label: 'Bank account', value: wizardData.bankAccount.name, show: !!wizardData.bankAccount.name },
-    { label: 'Invoice format', value: `${wizardData.invoice.prefix}-${String(wizardData.invoice.nextNumber).padStart(4, '0')}`, show: !!wizardData.invoice.prefix },
+    { label: 'Invoice format', value: `${wizardData.invoice.prefix}${String(wizardData.invoice.nextNumber).padStart(5, '0')}`, show: !!wizardData.invoice.prefix },
   ].filter(item => item.show);
 
   return (

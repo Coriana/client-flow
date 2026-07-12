@@ -134,8 +134,8 @@ export function getConfidenceLevel(score: number): 'high' | 'medium' | 'low' {
 export function getConfidenceColor(score: number): string {
   const level = getConfidenceLevel(score);
   switch (level) {
-    case 'high': return 'text-green-600 bg-green-50';
-    case 'medium': return 'text-yellow-600 bg-yellow-50';
-    case 'low': return 'text-red-600 bg-red-50';
+    case 'high': return 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30';
+    case 'medium': return 'text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30';
+    case 'low': return 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30';
   }
 }

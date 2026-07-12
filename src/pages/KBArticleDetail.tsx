@@ -313,7 +313,7 @@ export default function KBArticleDetail() {
   function getStatusBadge(status: string) {
     switch (status) {
       case 'published':
-        return <Badge className="bg-green-500/10 text-green-600">Published</Badge>;
+        return <Badge className="bg-green-500/10 text-green-600 dark:text-green-400">Published</Badge>;
       case 'draft':
         return <Badge variant="secondary">Draft</Badge>;
       case 'archived':
@@ -426,9 +426,9 @@ export default function KBArticleDetail() {
                       >
                         <div className="flex items-center gap-3">
                           {attachment.file_type.startsWith('image/') ? (
-                            <Image className="h-8 w-8 text-blue-500" />
+                            <Image className="h-8 w-8 text-blue-500 dark:text-blue-400" />
                           ) : (
-                            <FileText className="h-8 w-8 text-red-500" />
+                            <FileText className="h-8 w-8 text-red-500 dark:text-red-400" />
                           )}
                           <div>
                             <a
@@ -488,10 +488,10 @@ export default function KBArticleDetail() {
                       </div>
                       <div className="flex items-center gap-2">
                         {li.helped_resolve === true && (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
                         )}
                         {li.helped_resolve === false && (
-                          <XCircle className="h-4 w-4 text-red-500" />
+                          <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
                         )}
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(li.applied_at), 'MMM d')}

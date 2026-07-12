@@ -26,7 +26,7 @@ export function InvoiceStep({ data, onUpdate, onNext, onBack }: InvoiceStepProps
       const { error } = await supabase
         .from('company_settings')
         .update({
-          invoice_prefix: data.prefix.trim() || 'INV',
+          invoice_prefix: data.prefix.trim() || 'INV-',
           invoice_next_number: data.nextNumber || 1,
           default_payment_terms: data.paymentTerms || 30,
           setup_completed: true,
@@ -44,8 +44,8 @@ export function InvoiceStep({ data, onUpdate, onNext, onBack }: InvoiceStepProps
   };
 
   const formatInvoiceNumber = () => {
-    const num = String(data.nextNumber).padStart(4, '0');
-    return `${data.prefix}-${num}`;
+    const num = String(data.nextNumber).padStart(5, '0');
+    return `${data.prefix}${num}`;
   };
 
   return (
@@ -64,11 +64,14 @@ export function InvoiceStep({ data, onUpdate, onNext, onBack }: InvoiceStepProps
             <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
             <Input
               id="invoicePrefix"
-              placeholder="e.g., INV"
+              placeholder="e.g., INV-"
               value={data.prefix}
               onChange={(e) => onUpdate({ prefix: e.target.value.toUpperCase() })}
               maxLength={10}
             />
+            <p className="text-xs text-muted-foreground">
+              Include a separator if you want one, e.g. INV-
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="startingNumber">Starting Number</Label>

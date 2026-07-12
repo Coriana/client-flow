@@ -1,6 +1,16 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
+/** Escape a value for interpolation into HTML (shared with routes/mail.ts). */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface EmailConfig {
   host: string;
   port: number;
@@ -107,8 +117,8 @@ export async function sendInvoiceEmail(
 <body>
   <div class="container">
     <div class="header">
-      <h2 style="margin: 0;">Invoice ${invoiceNumber}</h2>
-      <p style="margin: 8px 0 0 0; color: #666;">From ${companyName}</p>
+      <h2 style="margin: 0;">Invoice ${escapeHtml(invoiceNumber)}</h2>
+      <p style="margin: 8px 0 0 0; color: #666;">From ${escapeHtml(companyName)}</p>
     </div>
     
     <p>Please find your invoice attached below.</p>
@@ -120,7 +130,7 @@ export async function sendInvoiceEmail(
     <p>If you have any questions about this invoice, please reply to this email.</p>
     
     <div class="footer">
-      <p>This is an automated email from ${companyName}. Please do not reply directly to this message.</p>
+      <p>This is an automated email from ${escapeHtml(companyName)}. Please do not reply directly to this message.</p>
     </div>
   </div>
 </body>
@@ -164,24 +174,24 @@ export async function sendInviteEmail(
   <div class="container">
     <div class="header">
       <h2 style="margin: 0;">You're invited!</h2>
-      <p style="margin: 8px 0 0 0; color: #666;">Join ${companyName}</p>
+      <p style="margin: 8px 0 0 0; color: #666;">Join ${escapeHtml(companyName)}</p>
     </div>
     
     <p>Hi there,</p>
     
-    <p>${inviterName} has invited you to join the team at <strong>${companyName}</strong>.</p>
+    <p>${escapeHtml(inviterName)} has invited you to join the team at <strong>${escapeHtml(companyName)}</strong>.</p>
     
     <p>Click the button below to create your account and get started:</p>
     
     <div style="text-align: center;">
-      <a href="${signupUrl}" class="button">Create Account</a>
+      <a href="${escapeHtml(signupUrl)}" class="button">Create Account</a>
     </div>
     
     <p>Or copy and paste this link into your browser:</p>
-    <p style="word-break: break-all; color: #666; font-size: 14px;">${signupUrl}</p>
+    <p style="word-break: break-all; color: #666; font-size: 14px;">${escapeHtml(signupUrl)}</p>
     
     <div class="footer">
-      <p>This invitation was sent by ${inviterName} from ${companyName}.</p>
+      <p>This invitation was sent by ${escapeHtml(inviterName)} from ${escapeHtml(companyName)}.</p>
       <p>If you were not expecting this invitation, you can safely ignore this email.</p>
     </div>
   </div>

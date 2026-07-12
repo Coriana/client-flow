@@ -5,6 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
 import { initializeDatabase, closeDatabase } from './db/database.js';
+import { startBackupSchedule } from './utils/backup.js';
 import authRoutes from './routes/auth.js';
 import crudRoutes from './routes/crud.js';
 import storageRoutes from './routes/storage.js';
@@ -155,6 +156,8 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`API server running on http://localhost:${PORT}`);
     console.log(`Database location: ${process.env.DATABASE_PATH || join(process.cwd(), 'data', 'app.db')}`);
   });
+
+  startBackupSchedule();
 
   // Graceful shutdown
   process.on('SIGTERM', () => {

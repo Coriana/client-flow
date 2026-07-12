@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Clock, FileText, DollarSign, Package, AlertCircle, 
-  Wrench, Users, TrendingUp, History 
+import {
+  Clock, FileText, DollarSign, Package, AlertCircle,
+  Wrench, Users, TrendingUp, History
 } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { parseDateOnly } from '@/lib/dates';
 
 interface HistoryEvent {
   id: string;
@@ -23,6 +25,7 @@ interface JobHistoryProps {
 }
 
 export default function JobHistory({ jobId }: JobHistoryProps) {
+  const { formatCurrency } = useBranding();
   const [events, setEvents] = useState<HistoryEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +73,7 @@ export default function JobHistory({ jobId }: JobHistoryProps) {
         id: `exp-${exp.id}`,
         type: 'expense',
         date: exp.date,
-        title: `Expense: $${exp.amount}`,
+        title: `Expense: ${formatCurrency(exp.amount)}`,
         description: exp.description,
         amount: exp.amount,
         metadata: exp,
@@ -84,7 +87,7 @@ export default function JobHistory({ jobId }: JobHistoryProps) {
         type: 'invoice',
         date: inv.issue_date,
         title: `Invoice: ${inv.invoice_number}`,
-        description: `Total: $${inv.total}`,
+        description: `Total: ${formatCurrency(inv.total)}`,
         amount: inv.total,
         status: inv.status,
         metadata: inv,
@@ -98,7 +101,7 @@ export default function JobHistory({ jobId }: JobHistoryProps) {
         type: 'job_asset',
         date: ja.rental_start_date,
         title: `Asset Added: ${(ja as any).assets?.name || 'Asset'}`,
-        description: `Rate: $${ja.rental_rate}/${ja.billing_frequency}`,
+        description: `Rate: ${formatCurrency(ja.rental_rate)}/${ja.billing_frequency}`,
         amount: ja.rental_rate,
         status: ja.is_active ? 'active' : 'ended',
         metadata: ja,
@@ -174,13 +177,13 @@ export default function JobHistory({ jobId }: JobHistoryProps) {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'timesheet': return 'bg-blue-100 text-blue-700';
-      case 'expense': return 'bg-amber-100 text-amber-700';
-      case 'invoice': return 'bg-green-100 text-green-700';
-      case 'job_asset': return 'bg-purple-100 text-purple-700';
-      case 'issue': return 'bg-red-100 text-red-700';
-      case 'inventory': return 'bg-cyan-100 text-cyan-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'timesheet': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'expense': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'invoice': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'job_asset': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'issue': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'inventory': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -223,8 +226,8 @@ export default function JobHistory({ jobId }: JobHistoryProps) {
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{event.description}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(event.date).toLocaleDateString('en-AU', { 
-                      day: 'numeric', month: 'short', year: 'numeric' 
+                    {parseDateOnly(event.date.slice(0, 10)).toLocaleDateString('en-AU', {
+                      day: 'numeric', month: 'short', year: 'numeric'
                     })}
                   </p>
                 </div>

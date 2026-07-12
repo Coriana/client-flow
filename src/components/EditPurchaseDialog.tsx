@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, X, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { todayLocal } from '@/lib/dates';
 import { uuid } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -56,6 +58,7 @@ interface EditPurchaseDialogProps {
 
 export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purchase }: EditPurchaseDialogProps) {
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [saving, setSaving] = useState(false);
@@ -67,7 +70,7 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
   const [defaultGstRate, setDefaultGstRate] = useState(10);
   
   const [editData, setEditData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     vendor_id: '',
     vendor_name: '',
     description: '',
@@ -630,7 +633,7 @@ export default function EditPurchaseDialog({ open, onOpenChange, onSuccess, purc
             ))}
             
             <div className="text-sm text-muted-foreground">
-              Allocated: ${allocations.reduce((sum, a) => sum + a.amount, 0).toFixed(2)} / Total: ${total.toFixed(2)}
+              Allocated: {formatCurrency(allocations.reduce((sum, a) => sum + a.amount, 0))} / Total: {formatCurrency(total)}
             </div>
           </div>
           

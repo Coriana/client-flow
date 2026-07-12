@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Plus, Trash2, Star, Percent, Palette } from 'lucide-react';
 import TradingNameCard from '@/components/TradingNameCard';
@@ -52,6 +53,7 @@ interface Role {
 
 export default function Settings() {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const { refetch: refetchBranding } = useBranding();
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<any>({ 
@@ -164,7 +166,11 @@ export default function Settings() {
       return;
     }
 
-    if (!confirm('Delete this trading name?')) return;
+    if (!(await confirm({
+      title: 'Delete this trading name?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
 
     const { error } = await supabase.from('trading_names').delete().eq('id', id);
     if (error) {
@@ -225,7 +231,11 @@ export default function Settings() {
       return;
     }
 
-    if (!confirm('Delete this tax rate?')) return;
+    if (!(await confirm({
+      title: 'Delete this tax rate?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
 
     const { error } = await supabase.from('tax_rates').delete().eq('id', id);
     if (error) {

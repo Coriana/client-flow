@@ -291,19 +291,19 @@ export default function ApiKeys() {
 
   const getMethodColor = (method: string) => {
     switch (method) {
-      case 'GET': return 'bg-emerald-500/20 text-emerald-700';
-      case 'POST': return 'bg-blue-500/20 text-blue-700';
+      case 'GET': return 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400';
+      case 'POST': return 'bg-blue-500/20 text-blue-700 dark:text-blue-400';
       case 'PUT':
-      case 'PATCH': return 'bg-amber-500/20 text-amber-700';
-      case 'DELETE': return 'bg-red-500/20 text-red-700';
+      case 'PATCH': return 'bg-amber-500/20 text-amber-700 dark:text-amber-400';
+      case 'DELETE': return 'bg-red-500/20 text-red-700 dark:text-red-400';
       default: return 'bg-muted text-muted-foreground';
     }
   };
 
   const getStatusColor = (status: number) => {
-    if (status >= 200 && status < 300) return 'text-emerald-600';
-    if (status >= 400 && status < 500) return 'text-amber-600';
-    if (status >= 500) return 'text-red-600';
+    if (status >= 200 && status < 300) return 'text-emerald-600 dark:text-emerald-400';
+    if (status >= 400 && status < 500) return 'text-amber-600 dark:text-amber-400';
+    if (status >= 500) return 'text-red-600 dark:text-red-400';
     return 'text-muted-foreground';
   };
 
@@ -406,7 +406,7 @@ export default function ApiKeys() {
                         </TableCell>
                         <TableCell>
                           {key.is_active ? (
-                            <Badge className="bg-emerald-500/20 text-emerald-700">Active</Badge>
+                            <Badge className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">Active</Badge>
                           ) : (
                             <Badge variant="destructive">Revoked</Badge>
                           )}
@@ -420,7 +420,7 @@ export default function ApiKeys() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {key.expires_at ? (
-                            <span className={new Date(key.expires_at) < new Date() ? 'text-red-500' : ''}>
+                            <span className={new Date(key.expires_at) < new Date() ? 'text-red-500 dark:text-red-400' : ''}>
                               {format(new Date(key.expires_at), 'MMM d, yyyy')}
                             </span>
                           ) : (
@@ -655,7 +655,7 @@ export default function ApiKeys() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               Save Your API Key
             </DialogTitle>
             <DialogDescription>

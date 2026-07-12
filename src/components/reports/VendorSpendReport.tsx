@@ -9,6 +9,13 @@ import { format, startOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { Download } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface VendorSpend {
   id: string | null;
@@ -24,10 +31,7 @@ export default function VendorSpendReport() {
   const [loading, setLoading] = useState(false);
   const [vendors, setVendors] = useState<VendorSpend[]>([]);
   const [totals, setTotals] = useState({ totalSpend: 0, vendorCount: 0, purchaseCount: 0 });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);
@@ -96,6 +100,22 @@ export default function VendorSpendReport() {
     },
   };
 
+  function handleExportCsv() {
+    const headers = ['Vendor', 'Purchases', 'Total Amount', '% of Total'];
+    const rows = vendors.map((vendor) => [
+      vendor.name,
+      vendor.purchaseCount,
+      round2(vendor.totalAmount),
+      round2(vendor.percentage),
+    ]);
+
+    if (vendors.length > 0) {
+      rows.push(['Total', totals.purchaseCount, round2(totals.totalSpend), 100]);
+    }
+
+    downloadCsv(`vendor-spend-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -123,6 +143,10 @@ export default function VendorSpendReport() {
             <Button onClick={fetchReport} disabled={loading}>
               {loading ? 'Loading...' : 'Run Report'}
             </Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={vendors.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -134,7 +158,7 @@ export default function VendorSpendReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Spend</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totals.totalSpend)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totals.totalSpend)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -165,9 +189,9 @@ export default function VendorSpendReport() {
             <ChartContainer config={chartConfig} className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
-                  <YAxis type="category" dataKey="name" width={120} />
-                  <Tooltip content={<ChartTooltipContent />} />
+                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
                   <Bar dataKey="spend" fill="var(--color-spend)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>

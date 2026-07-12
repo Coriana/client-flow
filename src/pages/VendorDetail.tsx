@@ -26,6 +26,10 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Edit, CreditCard, Package, Receipt, AlertTriangle, Users, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { formatDisplayDate } from '@/lib/dates';
+import AffiliatedContacts from '@/components/AffiliatedContacts';
+import PrimaryContactSelector from '@/components/PrimaryContactSelector';
 import LocationSelector from '@/components/LocationSelector';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -34,56 +38,31 @@ type Item = Tables<'items'>;
 type Purchase = Tables<'purchases'>;
 type Issue = Tables<'issues'>;
 
-interface VendorContact {
-  id: string;
-  vendor_id: string;
-  name: string;
-  title: string | null;
-  email: string | null;
-  phone: string | null;
-  notes: string | null;
-  is_primary: boolean | null;
-  is_active: boolean | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export default function VendorDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
 
   const [vendor, setVendor] = useState<Vendor | null>(null);
-  const [contacts, setContacts] = useState<VendorContact[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<VendorContact | null>(null);
   const [creditAdjustment, setCreditAdjustment] = useState({ amount: 0, notes: '' });
 
   const [editedVendor, setEditedVendor] = useState<Partial<Vendor>>({});
-  const [newContact, setNewContact] = useState({
-    name: '',
-    title: '',
-    email: '',
-    phone: '',
-    notes: '',
-    is_primary: false,
-  });
 
   useEffect(() => {
     if (id) fetchData();
   }, [id]);
 
   async function fetchData() {
-    const [vendorRes, contactsRes, itemsRes, purchasesRes, directIssuesRes] = await Promise.all([
+    const [vendorRes, itemsRes, purchasesRes, directIssuesRes] = await Promise.all([
       supabase.from('vendors').select('*').eq('id', id!).single(),
-      supabase.from('vendor_contacts').select('*').eq('vendor_id', id!).order('is_primary', { ascending: false }),
       supabase.from('items').select('*').eq('vendor_id', id!).order('name'),
       supabase.from('purchases').select('*').eq('vendor_id', id!).order('date', { ascending: false }),
       supabase.from('issues').select('*, purchases(description)').eq('vendor_id', id!).order('created_at', { ascending: false }),
@@ -97,7 +76,6 @@ export default function VendorDetail() {
 
     setVendor(vendorRes.data);
     setEditedVendor(vendorRes.data);
-    setContacts(contactsRes.data || []);
     setPurchases(purchasesRes.data || []);
     
     // Also get items from purchase allocations for this vendor
@@ -184,9 +162,6 @@ export default function VendorDetail() {
       .from('vendors')
       .update({
         name: editedVendor.name,
-        contact_name: editedVendor.contact_name,
-        contact_email: editedVendor.contact_email,
-        contact_phone: editedVendor.contact_phone,
         address: editedVendor.address,
         notes: editedVendor.notes,
         is_active: editedVendor.is_active,
@@ -202,74 +177,6 @@ export default function VendorDetail() {
       setEditMode(false);
     }
     setSaving(false);
-  }
-
-  async function handleAddContact() {
-    if (!newContact.name.trim()) {
-      toast({ title: 'Error', description: 'Contact name is required', variant: 'destructive' });
-      return;
-    }
-
-    // If setting as primary, unset other primaries first
-    if (newContact.is_primary) {
-      await supabase
-        .from('vendor_contacts')
-        .update({ is_primary: false })
-        .eq('vendor_id', id!);
-    }
-
-    const { error } = await supabase.from('vendor_contacts').insert({
-      vendor_id: id!,
-      name: newContact.name.trim(),
-      title: newContact.title.trim() || null,
-      email: newContact.email.trim() || null,
-      phone: newContact.phone.trim() || null,
-      notes: newContact.notes.trim() || null,
-      is_primary: newContact.is_primary,
-    });
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Success', description: 'Contact added' });
-      setContactDialogOpen(false);
-      setNewContact({ name: '', title: '', email: '', phone: '', notes: '', is_primary: false });
-      fetchData();
-    }
-  }
-
-  async function handleUpdateContact() {
-    if (!editingContact) return;
-
-    // If setting as primary, unset other primaries first
-    if (editingContact.is_primary) {
-      await supabase
-        .from('vendor_contacts')
-        .update({ is_primary: false })
-        .eq('vendor_id', id!)
-        .neq('id', editingContact.id);
-    }
-
-    const { error } = await supabase
-      .from('vendor_contacts')
-      .update({
-        name: editingContact.name,
-        title: editingContact.title,
-        email: editingContact.email,
-        phone: editingContact.phone,
-        notes: editingContact.notes,
-        is_primary: editingContact.is_primary,
-        is_active: editingContact.is_active,
-      })
-      .eq('id', editingContact.id);
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Success', description: 'Contact updated' });
-      setEditingContact(null);
-      fetchData();
-    }
   }
 
   async function handleAdjustCredit() {
@@ -294,17 +201,6 @@ export default function VendorDetail() {
       fetchData();
     }
   }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-AU');
-  };
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -391,7 +287,7 @@ export default function VendorDetail() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${(vendor.credit_balance || 0) > 0 ? 'text-green-600' : ''}`}>
+            <div className={`text-2xl font-bold ${(vendor.credit_balance || 0) > 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
               {formatCurrency(vendor.credit_balance || 0)}
             </div>
           </CardContent>
@@ -433,7 +329,7 @@ export default function VendorDetail() {
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="items">Items ({items.length})</TabsTrigger>
           <TabsTrigger value="purchases">Purchases ({purchases.length})</TabsTrigger>
           <TabsTrigger value="issues">Issues ({issues.length})</TabsTrigger>
@@ -447,37 +343,12 @@ export default function VendorDetail() {
             <CardContent className="space-y-4">
               {editMode ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Name</Label>
-                      <Input
-                        value={editedVendor.name || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Contact Name</Label>
-                      <Input
-                        value={editedVendor.contact_name || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, contact_name: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input
-                        value={editedVendor.contact_email || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, contact_email: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input
-                        value={editedVendor.contact_phone || ''}
-                        onChange={(e) => setEditedVendor({ ...editedVendor, contact_phone: e.target.value })}
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={editedVendor.name || ''}
+                      onChange={(e) => setEditedVendor({ ...editedVendor, name: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Address</Label>
@@ -508,18 +379,6 @@ export default function VendorDetail() {
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Contact Name</p>
-                    <p>{vendor.contact_name || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p>{vendor.contact_email || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p>{vendor.contact_phone || '-'}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-muted-foreground">Status</p>
                     <Badge variant={vendor.is_active ? 'default' : 'secondary'}>
                       {vendor.is_active ? 'Active' : 'Inactive'}
@@ -535,196 +394,15 @@ export default function VendorDetail() {
                   </div>
                 </div>
               )}
+              <div className="border-t pt-4">
+                <PrimaryContactSelector entityType="vendor" entityId={id!} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="contacts" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Contact
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Contact</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Name *</Label>
-                    <Input
-                      value={newContact.name}
-                      onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input
-                      value={newContact.title}
-                      onChange={(e) => setNewContact({ ...newContact, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input
-                        type="email"
-                        value={newContact.email}
-                        onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input
-                        value={newContact.phone}
-                        onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={newContact.notes}
-                      onChange={(e) => setNewContact({ ...newContact, notes: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={newContact.is_primary}
-                      onCheckedChange={(checked) => setNewContact({ ...newContact, is_primary: checked })}
-                    />
-                    <Label>Primary Contact</Label>
-                  </div>
-                  <Button className="w-full" onClick={handleAddContact}>
-                    Add Contact
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {/* Edit Contact Dialog */}
-          <Dialog open={!!editingContact} onOpenChange={(open) => !open && setEditingContact(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Contact</DialogTitle>
-              </DialogHeader>
-              {editingContact && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Name *</Label>
-                    <Input
-                      value={editingContact.name}
-                      onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input
-                      value={editingContact.title || ''}
-                      onChange={(e) => setEditingContact({ ...editingContact, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input
-                        type="email"
-                        value={editingContact.email || ''}
-                        onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input
-                        value={editingContact.phone || ''}
-                        onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={editingContact.notes || ''}
-                      onChange={(e) => setEditingContact({ ...editingContact, notes: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={editingContact.is_primary ?? false}
-                        onCheckedChange={(checked) => setEditingContact({ ...editingContact, is_primary: checked })}
-                      />
-                      <Label>Primary</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={editingContact.is_active ?? true}
-                        onCheckedChange={(checked) => setEditingContact({ ...editingContact, is_active: checked })}
-                      />
-                      <Label>Active</Label>
-                    </div>
-                  </div>
-                  <Button className="w-full" onClick={handleUpdateContact}>
-                    Save Changes
-                  </Button>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contacts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No contacts yet
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    contacts.map((contact) => (
-                      <TableRow key={contact.id}>
-                        <TableCell className="font-medium">
-                          {contact.name}
-                          {contact.is_primary && (
-                            <Badge variant="outline" className="ml-2">Primary</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{contact.title || '-'}</TableCell>
-                        <TableCell>{contact.email || '-'}</TableCell>
-                        <TableCell>{contact.phone || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={contact.is_active ? 'default' : 'secondary'}>
-                            {contact.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => setEditingContact(contact)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <AffiliatedContacts entityType="vendor" entityId={id!} />
         </TabsContent>
 
         <TabsContent value="items" className="space-y-4">
@@ -794,7 +472,7 @@ export default function VendorDetail() {
                   ) : (
                     purchases.map((purchase) => (
                       <TableRow key={purchase.id}>
-                        <TableCell>{formatDate(purchase.date)}</TableCell>
+                        <TableCell>{formatDisplayDate(purchase.date)}</TableCell>
                         <TableCell>{purchase.description}</TableCell>
                         <TableCell>{purchase.reference || '-'}</TableCell>
                         <TableCell className="text-right">{formatCurrency(purchase.amount)}</TableCell>
@@ -859,7 +537,7 @@ export default function VendorDetail() {
                             {issue.severity}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDate(issue.created_at)}</TableCell>
+                        <TableCell>{formatDisplayDate(issue.created_at)}</TableCell>
                       </TableRow>
                     ))
                   )}

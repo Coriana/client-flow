@@ -58,8 +58,8 @@ const docSections: DocSection[] = [
         content: `Clients are the foundation of your workflow.
 
 **To add a client:**
-1. Go to **Accounts** in the sidebar
-2. Click **New Account**
+1. Go to **Clients** in the sidebar
+2. Click **New Client**
 3. Fill in the client details:
    - Business name (required)
    - Trading name (if different)
@@ -69,7 +69,7 @@ const docSections: DocSection[] = [
 4. Click **Save**
 
 **Client features:**
-- Add multiple contacts per client
+- Add contacts, or link an existing person if they've moved from another client or vendor
 - Set custom payment terms
 - View all jobs and invoices for each client
 - Track client history and notes`,
@@ -128,7 +128,7 @@ const docSections: DocSection[] = [
     articles: [
       {
         id: 'clients',
-        title: 'Clients & Accounts',
+        title: 'Clients',
         content: `Manage all your client relationships in one place.
 
 **Client Management:**
@@ -138,7 +138,7 @@ const docSections: DocSection[] = [
 
 **Client Details Page:**
 - **Overview** - Contact info, ABN, payment terms
-- **Contacts** - Multiple people per organization
+- **Contacts** - People affiliated with this client. Contacts can move between clients and vendors over time, and ending an affiliation keeps their history — find everyone under **Contacts** in the sidebar.
 - **Jobs** - All work for this client
 - **Invoices** - Billing history
 - **History** - Audit trail of changes

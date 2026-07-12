@@ -9,6 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfYear, endOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface Invoice {
   id: string;
@@ -28,10 +35,7 @@ export default function InvoiceSummaryReport() {
   const [startDate, setStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfYear(new Date()), 'yyyy-MM-dd'));
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -97,6 +101,22 @@ export default function InvoiceSummaryReport() {
     count: invoices.length,
   };
 
+  function handleExportCsv() {
+    const headers = ['Invoice #', 'Client', 'Issue Date', 'Due Date', 'Status', 'Total', 'Paid', 'Outstanding'];
+    const rows = invoices.map((inv) => [
+      inv.invoice_number,
+      inv.client_name,
+      inv.issue_date,
+      inv.due_date,
+      inv.status,
+      round2(inv.total),
+      round2(inv.amount_paid),
+      round2(inv.total - inv.amount_paid),
+    ]);
+
+    downloadCsv(`invoice-summary-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -134,6 +154,10 @@ export default function InvoiceSummaryReport() {
               </Select>
             </div>
             <Button onClick={fetchReport}>Generate Report</Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={invoices.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -160,7 +184,7 @@ export default function InvoiceSummaryReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.paid)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.paid)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -168,7 +192,7 @@ export default function InvoiceSummaryReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{formatCurrency(summary.outstanding)}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(summary.outstanding)}</div>
           </CardContent>
         </Card>
       </div>
@@ -208,8 +232,8 @@ export default function InvoiceSummaryReport() {
                   <TableCell>{format(new Date(inv.due_date), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>{getStatusBadge(inv.status)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(inv.total)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(inv.amount_paid)}</TableCell>
-                  <TableCell className="text-right text-amber-600">{formatCurrency(inv.total - inv.amount_paid)}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(inv.amount_paid)}</TableCell>
+                  <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(inv.total - inv.amount_paid)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

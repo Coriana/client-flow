@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBranding } from "@/contexts/BrandingContext";
+import { formatDisplayDate, parseDateOnly } from "@/lib/dates";
 import LocationSelector from "@/components/LocationSelector";
 import {
   ArrowLeft,
@@ -78,6 +80,7 @@ export default function AssetDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { formatCurrency } = useBranding();
   const isNew = id === "new";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -398,13 +401,8 @@ export default function AssetDetail() {
     setSaving(false);
   }
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return "$0.00";
-    return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
-  };
-
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-AU", {
+    return parseDateOnly(dateStr.slice(0, 10)).toLocaleDateString("en-AU", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -416,27 +414,27 @@ export default function AssetDetail() {
   const getHistoryIcon = (eventType: string) => {
     switch (eventType) {
       case "created":
-        return <Package className="h-4 w-4 text-green-500" />;
+        return <Package className="h-4 w-4 text-green-500 dark:text-green-400" />;
       case "updated":
-        return <RefreshCw className="h-4 w-4 text-blue-500" />;
+        return <RefreshCw className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
       case "maintenance":
-        return <Wrench className="h-4 w-4 text-amber-500" />;
+        return <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
       case "issue":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
       case "issue_open":
-        return <Bug className="h-4 w-4 text-red-500" />;
+        return <Bug className="h-4 w-4 text-red-500 dark:text-red-400" />;
       case "issue_resolved":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
       case "issue_closed":
         return <CheckCircle className="h-4 w-4 text-muted-foreground" />;
       case "issue_in_progress":
-        return <Bug className="h-4 w-4 text-amber-500" />;
+        return <Bug className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
       case "image_updated":
-        return <Image className="h-4 w-4 text-purple-500" />;
+        return <Image className="h-4 w-4 text-purple-500 dark:text-purple-400" />;
       case "document_added":
-        return <FileText className="h-4 w-4 text-blue-500" />;
+        return <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
       case "document_removed":
-        return <FileText className="h-4 w-4 text-red-500" />;
+        return <FileText className="h-4 w-4 text-red-500 dark:text-red-400" />;
       default:
         return <History className="h-4 w-4 text-muted-foreground" />;
     }
@@ -583,11 +581,11 @@ export default function AssetDetail() {
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <FileText className="h-8 w-8 text-red-500 flex-shrink-0" />
+                      <FileText className="h-8 w-8 text-red-500 dark:text-red-400 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{doc.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatFileSize(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}
+                          {formatFileSize(doc.file_size)} • {formatDisplayDate(doc.created_at)}
                         </p>
                       </div>
                     </div>
@@ -690,7 +688,7 @@ export default function AssetDetail() {
                 </SelectContent>
               </Select>
               {asset.assigned_client_id && (
-                <p className="text-xs text-amber-600">Assigned assets cannot be rented out to jobs</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">Assigned assets cannot be rented out to jobs</p>
               )}
             </div>
             <LocationSelector
@@ -855,7 +853,7 @@ export default function AssetDetail() {
                     <span className="mx-2">•</span>
                     {formatCurrency(activeRental.rental_rate)}/{activeRental.billing_frequency}
                     <span className="mx-2">•</span>
-                    Since {activeRental.rental_start_date}
+                    Since {formatDisplayDate(activeRental.rental_start_date)}
                   </div>
                 </div>
               )}
@@ -878,11 +876,11 @@ export default function AssetDetail() {
                         <div className="text-sm text-muted-foreground">
                           {formatCurrency(ja.rental_rate)}/{ja.billing_frequency}
                           <span className="mx-2">•</span>
-                          {ja.rental_start_date} to {ja.rental_end_date || "ongoing"}
-                          {!ja.is_active && <span className="ml-2 text-amber-600">(Inactive)</span>}
+                          {formatDisplayDate(ja.rental_start_date)} to {ja.rental_end_date ? formatDisplayDate(ja.rental_end_date) : "ongoing"}
+                          {!ja.is_active && <span className="ml-2 text-amber-600 dark:text-amber-400">(Inactive)</span>}
                         </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Next invoice: {ja.next_invoice_date || "N/A"}</div>
+                      <div className="text-sm text-muted-foreground">Next invoice: {ja.next_invoice_date ? formatDisplayDate(ja.next_invoice_date) : "N/A"}</div>
                     </div>
                   ))}
                 </div>

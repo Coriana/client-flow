@@ -6,6 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, startOfYear } from 'date-fns';
+import { Download } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface PLData {
   income: number;
@@ -23,10 +30,7 @@ export default function ProfitLossReport() {
   const [incomeByClient, setIncomeByClient] = useState<{ name: string; amount: number }[]>([]);
   const [expensesByCategory, setExpensesByCategory] = useState<{ category: string; amount: number }[]>([]);
   const [purchasesByVendor, setPurchasesByVendor] = useState<{ name: string; amount: number }[]>([]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);
@@ -114,6 +118,24 @@ export default function ProfitLossReport() {
     fetchReport();
   }, []);
 
+  function handleExportCsv() {
+    if (!data) return;
+
+    const headers = ['Section', 'Name', 'Amount'];
+    const rows = [
+      ...incomeByClient.map((item) => ['Income by Client', item.name, round2(item.amount)]),
+      ...expensesByCategory.map((item) => ['Expenses by Category', item.category, round2(item.amount)]),
+      ...purchasesByVendor.map((item) => ['Purchases by Vendor', item.name, round2(item.amount)]),
+      ['Summary', 'Income', round2(data.income)],
+      ['Summary', 'Expenses', round2(data.expenses)],
+      ['Summary', 'Purchases', round2(data.purchases)],
+      ['Summary', 'Bad Debt', round2(data.writtenOff)],
+      ['Summary', 'Net Profit', round2(data.netProfit)],
+    ];
+
+    downloadCsv(`profit-loss-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -141,6 +163,10 @@ export default function ProfitLossReport() {
             <Button onClick={fetchReport} disabled={loading}>
               {loading ? 'Loading...' : 'Run Report'}
             </Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={!data}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -153,7 +179,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Income</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(data.income)}</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(data.income)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -161,7 +187,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Expenses</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(data.expenses)}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(data.expenses)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -169,7 +195,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Purchases</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(data.purchases)}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(data.purchases)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -177,7 +203,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Bad Debt</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{formatCurrency(data.writtenOff)}</div>
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(data.writtenOff)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -185,7 +211,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Net Profit</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {formatCurrency(data.netProfit)}
                 </div>
               </CardContent>

@@ -8,6 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfYear, endOfYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Download } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface ClientRevenue {
   client_id: string;
@@ -23,10 +30,7 @@ export default function RevenueByClientReport() {
   const [data, setData] = useState<ClientRevenue[]>([]);
   const [startDate, setStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfYear(new Date()), 'yyyy-MM-dd'));
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   const fetchReport = async () => {
     setLoading(true);
@@ -83,6 +87,31 @@ export default function RevenueByClientReport() {
     revenue: c.total_revenue,
   }));
 
+  function handleExportCsv() {
+    const headers = ['Client', 'Invoices', 'Total Revenue', 'Paid', 'Outstanding', '% of Total'];
+    const rows = data.map((row) => [
+      row.client_name,
+      row.invoice_count,
+      round2(row.total_revenue),
+      round2(row.paid_amount),
+      round2(row.outstanding),
+      round2(totalRevenue > 0 ? (row.total_revenue / totalRevenue) * 100 : 0),
+    ]);
+
+    if (data.length > 0) {
+      rows.push([
+        'Total',
+        data.reduce((s, c) => s + c.invoice_count, 0),
+        round2(totalRevenue),
+        round2(data.reduce((s, c) => s + c.paid_amount, 0)),
+        round2(data.reduce((s, c) => s + c.outstanding, 0)),
+        100,
+      ]);
+    }
+
+    downloadCsv(`revenue-by-client-${startDate}-to-${endDate}.csv`, headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -102,6 +131,10 @@ export default function RevenueByClientReport() {
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
             <Button onClick={fetchReport}>Generate Report</Button>
+            <Button variant="outline" onClick={handleExportCsv} disabled={data.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -114,10 +147,16 @@ export default function RevenueByClientReport() {
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} />
-                <YAxis type="category" dataKey="name" width={120} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={{ stroke: 'hsl(var(--border))' }} />
+                <Tooltip
+                  formatter={(v: number) => formatCurrency(v)}
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                  contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>
@@ -151,8 +190,8 @@ export default function RevenueByClientReport() {
                   </TableCell>
                   <TableCell className="text-right">{row.invoice_count}</TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(row.total_revenue)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(row.paid_amount)}</TableCell>
-                  <TableCell className="text-right text-amber-600">{formatCurrency(row.outstanding)}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(row.paid_amount)}</TableCell>
+                  <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(row.outstanding)}</TableCell>
                   <TableCell className="text-right">{totalRevenue > 0 ? ((row.total_revenue / totalRevenue) * 100).toFixed(1) : 0}%</TableCell>
                 </TableRow>
               ))}
@@ -161,8 +200,8 @@ export default function RevenueByClientReport() {
                   <TableCell>Total</TableCell>
                   <TableCell className="text-right">{data.reduce((s, c) => s + c.invoice_count, 0)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(totalRevenue)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(data.reduce((s, c) => s + c.paid_amount, 0))}</TableCell>
-                  <TableCell className="text-right text-amber-600">{formatCurrency(data.reduce((s, c) => s + c.outstanding, 0))}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(data.reduce((s, c) => s + c.paid_amount, 0))}</TableCell>
+                  <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(data.reduce((s, c) => s + c.outstanding, 0))}</TableCell>
                   <TableCell className="text-right">100%</TableCell>
                 </TableRow>
               )}

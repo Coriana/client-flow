@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Receipt } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useBranding } from '@/contexts/BrandingContext';
 import { toast } from 'sonner';
 
 interface TaxRateStepProps {
@@ -17,6 +18,7 @@ interface TaxRateStepProps {
 }
 
 export function TaxRateStep({ data, onUpdate, onNext, onBack }: TaxRateStepProps) {
+  const { formatCurrency } = useBranding();
   const [saving, setSaving] = useState(false);
   const [existingTaxId, setExistingTaxId] = useState<string | null>(null);
 
@@ -122,7 +124,7 @@ export function TaxRateStep({ data, onUpdate, onNext, onBack }: TaxRateStepProps
 
         <div className="bg-secondary/50 rounded-lg p-4">
           <p className="text-sm text-foreground">
-            <strong>Preview:</strong> A $100 item will be invoiced as $100 + ${(100 * data.rate / 100).toFixed(2)} {data.name} = <strong>${(100 + (100 * data.rate / 100)).toFixed(2)}</strong>
+            <strong>Preview:</strong> A {formatCurrency(100)} item will be invoiced as {formatCurrency(100)} + {formatCurrency(100 * data.rate / 100)} {data.name} = <strong>{formatCurrency(100 + (100 * data.rate / 100))}</strong>
           </p>
         </div>
       </div>

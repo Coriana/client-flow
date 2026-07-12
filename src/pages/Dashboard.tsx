@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSetupComplete } from '@/hooks/useSetupComplete';
 import { useBranding } from '@/contexts/BrandingContext';
 import { SetupWizard } from '@/components/setup/SetupWizard';
+import { formatDateOnly, formatDisplayDate } from '@/lib/dates';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   DollarSign, 
@@ -83,6 +85,26 @@ interface ActivityLogEntry {
   user_name?: string;
 }
 
+interface DashboardData {
+  stats: DashboardStats;
+  bankAccounts: BankAccount[];
+  outstandingInvoices: OutstandingInvoice[];
+  openIssues: OpenIssue[];
+  lowStockItems: LowStockItem[];
+  topJobs: any[];
+  activityItems: ActivityLogEntry[];
+}
+
+const DEFAULT_STATS: DashboardStats = {
+  outstandingInvoices: 0,
+  outstandingAmount: 0,
+  cashCollectedThisMonth: 0,
+  openIssues: 0,
+  activeJobs: 0,
+  lowStockItems: 0,
+  totalBankBalance: 0,
+};
+
 const ENTITY_TYPES = [
   { value: 'all', label: 'All Activity' },
   { value: 'clients', label: 'Clients' },
@@ -94,172 +116,177 @@ const ENTITY_TYPES = [
   { value: 'items', label: 'Inventory' },
 ];
 
+async function fetchDashboardData(): Promise<DashboardData> {
+  // Fetch outstanding invoices with client info (display list — capped at 10)
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, total, amount_paid, status, due_date, clients(name)')
+    .in('status', ['sent', 'partially_paid', 'overdue'])
+    .order('due_date', { ascending: true })
+    .limit(10);
+
+  // Fetch the accurate outstanding invoice count (unlimited, for the stat card)
+  const { count: outstandingInvoiceCount } = await supabase
+    .from('invoices')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['sent', 'partially_paid', 'overdue']);
+
+  // Fetch all outstanding invoices (narrow projection, unlimited) to compute the accurate total
+  const { data: allOutstandingInvoices } = await supabase
+    .from('invoices')
+    .select('total, amount_paid')
+    .in('status', ['sent', 'partially_paid', 'overdue']);
+
+  const outstandingAmount = allOutstandingInvoices?.reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0) || 0;
+
+  // Fetch cash collected this month
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('amount')
+    .gte('date', formatDateOnly(startOfMonth));
+
+  const cashCollected = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+
+  // Fetch open issues with client info (display list — capped at 10)
+  const { data: issues } = await supabase
+    .from('issues')
+    .select('id, title, severity, status, created_at, clients(name)')
+    .in('status', ['open', 'in_progress'])
+    .order('severity', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  // Fetch the accurate open issues count (unlimited, for the stat card)
+  const { count: openIssuesCount } = await supabase
+    .from('issues')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['open', 'in_progress']);
+
+  // Fetch active jobs count
+  const { count: jobCount } = await supabase
+    .from('jobs')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'active');
+
+  // Fetch low stock items
+  const { data: items } = await supabase
+    .from('items')
+    .select('id, name, sku, current_stock, reorder_level')
+    .eq('is_active', true);
+
+  const lowStock = (items || []).filter(item =>
+    (item.current_stock || 0) <= (item.reorder_level || 0) && (item.reorder_level || 0) > 0
+  );
+
+  // Fetch top 5 jobs by revenue
+  const { data: jobs } = await supabase
+    .from('jobs')
+    .select(`
+      id,
+      name,
+      job_number,
+      invoices (total, amount_paid)
+    `)
+    .eq('status', 'active')
+    .limit(5);
+
+  const jobsWithRevenue = jobs?.map(job => ({
+    ...job,
+    revenue: job.invoices?.reduce((sum: number, inv: any) => sum + inv.amount_paid, 0) || 0,
+  })).sort((a, b) => b.revenue - a.revenue) || [];
+
+  // Fetch bank accounts
+  const { data: bankAccountsData } = await supabase
+    .from('bank_accounts')
+    .select('id, name, bank_name, current_balance, is_default')
+    .eq('is_active', true)
+    .order('is_default', { ascending: false })
+    .order('name');
+
+  const totalBankBalance = (bankAccountsData || []).reduce(
+    (sum, acc) => sum + Number(acc.current_balance || 0), 0
+  );
+
+  // Fetch recent activity from activity_log
+  const { data: activityLogData } = await supabase
+    .from('activity_log')
+    .select('id, user_id, action, entity_type, entity_id, entity_name, created_at')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Fetch user profiles for activity log entries
+  const userIds = [...new Set((activityLogData || []).filter(a => a.user_id).map(a => a.user_id!))];
+  let profilesMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', userIds);
+
+    profiles?.forEach(p => {
+      profilesMap[p.id] = p.full_name || p.email || 'Unknown';
+    });
+  }
+
+  const enrichedActivity = (activityLogData || []).map(entry => ({
+    ...entry,
+    user_name: entry.user_id ? profilesMap[entry.user_id] || 'System' : 'System',
+  }));
+
+  return {
+    stats: {
+      outstandingInvoices: outstandingInvoiceCount || 0,
+      outstandingAmount,
+      cashCollectedThisMonth: cashCollected,
+      openIssues: openIssuesCount || 0,
+      activeJobs: jobCount || 0,
+      lowStockItems: lowStock.length,
+      totalBankBalance,
+    },
+    bankAccounts: bankAccountsData || [],
+    outstandingInvoices: invoices || [],
+    openIssues: issues || [],
+    lowStockItems: lowStock,
+    topJobs: jobsWithRevenue,
+    activityItems: enrichedActivity,
+  };
+}
+
 export default function Dashboard() {
   const { toast } = useToast();
   const { branding, formatCurrency } = useBranding();
   const { isComplete: setupComplete, isLoading: setupLoading, refetch: refetchSetup } = useSetupComplete();
-  const [stats, setStats] = useState<DashboardStats>({
-    outstandingInvoices: 0,
-    outstandingAmount: 0,
-    cashCollectedThisMonth: 0,
-    openIssues: 0,
-    activeJobs: 0,
-    lowStockItems: 0,
-    totalBankBalance: 0,
-  });
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([]);
-  const [openIssues, setOpenIssues] = useState<OpenIssue[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [topJobs, setTopJobs] = useState<any[]>([]);
-  const [activityItems, setActivityItems] = useState<ActivityLogEntry[]>([]);
   const [activityFilter, setActivityFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
   const [generatingInvoices, setGeneratingInvoices] = useState(false);
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        // Fetch outstanding invoices with client info
-        const { data: invoices } = await supabase
-          .from('invoices')
-          .select('id, invoice_number, total, amount_paid, status, due_date, clients(name)')
-          .in('status', ['sent', 'partially_paid', 'overdue'])
-          .order('due_date', { ascending: true })
-          .limit(10);
-        
-        const outstandingAmount = invoices?.reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0) || 0;
-        setOutstandingInvoices(invoices || []);
-        
-        // Fetch cash collected this month
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        
-        const { data: payments } = await supabase
-          .from('payments')
-          .select('amount')
-          .gte('date', startOfMonth.toISOString().split('T')[0]);
-        
-        const cashCollected = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-        
-        // Fetch open issues with client info
-        const { data: issues } = await supabase
-          .from('issues')
-          .select('id, title, severity, status, created_at, clients(name)')
-          .in('status', ['open', 'in_progress'])
-          .order('severity', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        setOpenIssues(issues || []);
-        
-        // Fetch active jobs count
-        const { count: jobCount } = await supabase
-          .from('jobs')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'active');
-        
-        // Fetch low stock items
-        const { data: items } = await supabase
-          .from('items')
-          .select('id, name, sku, current_stock, reorder_level')
-          .eq('is_active', true);
-        
-        const lowStock = (items || []).filter(item => 
-          (item.current_stock || 0) <= (item.reorder_level || 0) && (item.reorder_level || 0) > 0
-        );
-        setLowStockItems(lowStock);
-        
-        // Fetch top 5 jobs by revenue
-        const { data: jobs } = await supabase
-          .from('jobs')
-          .select(`
-            id,
-            name,
-            job_number,
-            invoices (total, amount_paid)
-          `)
-          .eq('status', 'active')
-          .limit(5);
-        
-        const jobsWithRevenue = jobs?.map(job => ({
-          ...job,
-          revenue: job.invoices?.reduce((sum: number, inv: any) => sum + inv.amount_paid, 0) || 0,
-        })).sort((a, b) => b.revenue - a.revenue) || [];
-        
-        // Fetch bank accounts
-        const { data: bankAccountsData } = await supabase
-          .from('bank_accounts')
-          .select('id, name, bank_name, current_balance, is_default')
-          .eq('is_active', true)
-          .order('is_default', { ascending: false })
-          .order('name');
-        
-        const totalBankBalance = (bankAccountsData || []).reduce(
-          (sum, acc) => sum + Number(acc.current_balance || 0), 0
-        );
-        setBankAccounts(bankAccountsData || []);
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: fetchDashboardData,
+  });
 
-        // Fetch recent activity from activity_log
-        const { data: activityLogData } = await supabase
-          .from('activity_log')
-          .select('id, user_id, action, entity_type, entity_id, entity_name, created_at')
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        // Fetch user profiles for activity log entries
-        const userIds = [...new Set((activityLogData || []).filter(a => a.user_id).map(a => a.user_id!))];
-        let profilesMap: Record<string, string> = {};
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', userIds);
-          
-          profiles?.forEach(p => {
-            profilesMap[p.id] = p.full_name || p.email || 'Unknown';
-          });
-        }
-
-        const enrichedActivity = (activityLogData || []).map(entry => ({
-          ...entry,
-          user_name: entry.user_id ? profilesMap[entry.user_id] || 'System' : 'System',
-        }));
-        
-        setActivityItems(enrichedActivity);
-        
-        setStats({
-          outstandingInvoices: invoices?.length || 0,
-          outstandingAmount,
-          cashCollectedThisMonth: cashCollected,
-          openIssues: issues?.length || 0,
-          activeJobs: jobCount || 0,
-          lowStockItems: lowStock.length,
-          totalBankBalance,
-        });
-        
-        setTopJobs(jobsWithRevenue);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchDashboardData();
-  }, []);
-
+  const stats = data?.stats ?? DEFAULT_STATS;
+  const bankAccounts = data?.bankAccounts ?? [];
+  const outstandingInvoices = data?.outstandingInvoices ?? [];
+  const openIssues = data?.openIssues ?? [];
+  const lowStockItems = data?.lowStockItems ?? [];
+  const topJobs = data?.topJobs ?? [];
+  const activityItems = data?.activityItems ?? [];
+  const loading = isLoading;
 
   async function handleGenerateJobInvoices() {
     setGeneratingInvoices(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-job-invoices');
+      const { data: invokeData, error } = await supabase.functions.invoke('generate-job-invoices');
       if (error) throw error;
       toast({
         title: 'Job Invoices',
-        description: data.message,
+        description: invokeData.message,
       });
+      refetch();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -307,7 +334,7 @@ export default function Dashboard() {
       case 'clients': return 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400';
       case 'assets': return 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900 dark:text-cyan-400';
       case 'items': return 'bg-amber-100 text-amber-600 dark:bg-amber-900 dark:text-amber-400';
-      default: return 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -388,7 +415,7 @@ export default function Dashboard() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.totalBankBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${stats.totalBankBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {formatCurrency(stats.totalBankBalance)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -479,7 +506,7 @@ export default function Dashboard() {
                       <Badge variant="secondary" className="text-xs">Default</Badge>
                     )}
                   </div>
-                  <p className={`text-xl font-bold mt-2 ${Number(account.current_balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-xl font-bold mt-2 ${Number(account.current_balance) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {formatCurrency(Number(account.current_balance))}
                   </p>
                 </Link>
@@ -518,7 +545,7 @@ export default function Dashboard() {
                           {inv.clients?.name || 'Unknown Client'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Due: {new Date(inv.due_date).toLocaleDateString()}
+                          Due: {formatDisplayDate(inv.due_date)}
                         </p>
                       </div>
                       <div className="text-right">
@@ -558,7 +585,7 @@ export default function Dashboard() {
                     className="block p-3 rounded-lg hover:bg-muted transition-colors"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 ${severityColors[issue.severity] || 'bg-gray-400'}`} />
+                      <div className={`w-2 h-2 rounded-full mt-2 ${severityColors[issue.severity] || 'bg-muted-foreground'}`} />
                       <div className="flex-1">
                         <p className="font-medium">{issue.title}</p>
                         <p className="text-sm text-muted-foreground">
@@ -587,7 +614,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               Low Stock Items
               {lowStockItems.length > 0 && (
                 <Badge variant="destructive">{lowStockItems.length}</Badge>
@@ -612,7 +639,7 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">{item.sku}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-medium ${item.current_stock <= 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                        <p className={`font-medium ${item.current_stock <= 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
                           {item.current_stock} in stock
                         </p>
                         <p className="text-xs text-muted-foreground">

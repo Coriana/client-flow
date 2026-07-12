@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface InventoryItem {
   id: string;
@@ -22,10 +30,7 @@ interface InventoryItem {
 export default function InventoryValuationReport() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InventoryItem[]>([]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   const fetchReport = async () => {
     setLoading(true);
@@ -84,6 +89,29 @@ export default function InventoryValuationReport() {
     };
   });
 
+  function getStatusLabel(item: InventoryItem): string {
+    if (!item.is_active) return 'Inactive';
+    if (item.current_stock <= item.reorder_level) return 'Low Stock';
+    return 'Active';
+  }
+
+  function handleExportCsv() {
+    const headers = ['SKU', 'Name', 'Category', 'Stock', 'Unit Cost', 'Sales Price', 'Cost Value', 'Sales Value', 'Status'];
+    const rows = items.map((item) => [
+      item.sku,
+      item.name,
+      item.category || '',
+      item.current_stock,
+      round2(item.unit_cost),
+      round2(item.sales_price),
+      round2(item.total_cost_value),
+      round2(item.total_sales_value),
+      getStatusLabel(item),
+    ]);
+
+    downloadCsv('inventory-valuation.csv', headers, rows);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading report...</div>;
 
   return (
@@ -119,7 +147,7 @@ export default function InventoryValuationReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Sales Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.salesValue)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.salesValue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -135,7 +163,7 @@ export default function InventoryValuationReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Low Stock</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{totals.lowStock}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{totals.lowStock}</div>
             <p className="text-xs text-muted-foreground">items need reorder</p>
           </CardContent>
         </Card>
@@ -186,8 +214,12 @@ export default function InventoryValuationReport() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Item Details</CardTitle>
+          <Button variant="outline" onClick={handleExportCsv} disabled={items.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -216,7 +248,7 @@ export default function InventoryValuationReport() {
                   <TableCell>{item.category || '-'}</TableCell>
                   <TableCell className="text-right">
                     {item.current_stock <= item.reorder_level && item.is_active ? (
-                      <span className="text-amber-600 font-medium">{item.current_stock}</span>
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">{item.current_stock}</span>
                     ) : (
                       item.current_stock
                     )}

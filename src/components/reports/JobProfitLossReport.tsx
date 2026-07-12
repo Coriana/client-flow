@@ -3,7 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { downloadCsv } from '@/lib/csv';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 interface JobPL {
   id: string;
@@ -24,10 +32,7 @@ export default function JobProfitLossReport() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<JobPL[]>([]);
   const [totals, setTotals] = useState({ revenue: 0, labour: 0, expenses: 0, purchases: 0, writtenOff: 0, profit: 0 });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  const { formatCurrency } = useBranding();
 
   async function fetchReport() {
     setLoading(true);
@@ -146,6 +151,25 @@ export default function JobProfitLossReport() {
     fetchReport();
   }, []);
 
+  function handleExportCsv() {
+    const headers = ['Job Number', 'Job Name', 'Client', 'Status', 'Revenue', 'Labour', 'Expenses', 'Purchases', 'Written Off', 'Profit', 'Margin'];
+    const rows = jobs.map((job) => [
+      job.job_number,
+      job.name,
+      job.client_name,
+      job.status,
+      round2(job.revenue),
+      round2(job.labourCost),
+      round2(job.expenseCost),
+      round2(job.purchaseCost),
+      round2(job.writtenOff),
+      round2(job.profit),
+      round2(job.margin),
+    ]);
+
+    downloadCsv('job-profit-loss.csv', headers, rows);
+  }
+
   const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     prospect: 'secondary',
     active: 'default',
@@ -166,7 +190,7 @@ export default function JobProfitLossReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.revenue)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.revenue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -198,7 +222,7 @@ export default function JobProfitLossReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Written Off</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totals.writtenOff)}</div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(totals.writtenOff)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -206,7 +230,7 @@ export default function JobProfitLossReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Net Profit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${totals.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {formatCurrency(totals.profit)}
             </div>
           </CardContent>
@@ -214,8 +238,12 @@ export default function JobProfitLossReport() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Job Profitability</CardTitle>
+          <Button variant="outline" onClick={handleExportCsv} disabled={jobs.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -258,11 +286,11 @@ export default function JobProfitLossReport() {
                     <TableCell className="text-right">{formatCurrency(job.labourCost)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(job.expenseCost)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(job.purchaseCost)}</TableCell>
-                    <TableCell className="text-right text-orange-600">{formatCurrency(job.writtenOff)}</TableCell>
-                    <TableCell className={`text-right font-medium ${job.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <TableCell className="text-right text-orange-600 dark:text-orange-400">{formatCurrency(job.writtenOff)}</TableCell>
+                    <TableCell className={`text-right font-medium ${job.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {formatCurrency(job.profit)}
                     </TableCell>
-                    <TableCell className={`text-right ${job.margin >= 0 ? '' : 'text-red-600'}`}>
+                    <TableCell className={`text-right ${job.margin >= 0 ? '' : 'text-red-600 dark:text-red-400'}`}>
                       {job.margin.toFixed(1)}%
                     </TableCell>
                   </TableRow>

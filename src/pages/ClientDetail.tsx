@@ -10,8 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Trash2 } from 'lucide-react';
-import ClientContacts from '@/components/ClientContacts';
+import AffiliatedContacts from '@/components/AffiliatedContacts';
+import PrimaryContactSelector from '@/components/PrimaryContactSelector';
 import LocationSelector from '@/components/LocationSelector';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { useBranding } from '@/contexts/BrandingContext';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Client = Tables<'clients'>;
@@ -20,6 +23,8 @@ export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const { formatCurrency } = useBranding();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -36,10 +41,11 @@ export default function ClientDetail() {
     payment_terms: 30,
     notes: '',
     is_active: true,
+    default_billable_time: true,
+    default_billable_expenses: true,
   });
   const [jobs, setJobs] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [primaryContact, setPrimaryContact] = useState<any>(null);
 
   useEffect(() => {
     if (isNew) {
@@ -48,7 +54,6 @@ export default function ClientDetail() {
     } else if (id) {
       fetchClient();
       fetchRelatedData();
-      fetchPrimaryContact();
     }
   }, [id, isNew]);
 
@@ -58,22 +63,10 @@ export default function ClientDetail() {
       .select('default_payment_terms')
       .limit(1)
       .single();
-    
+
     if (data?.default_payment_terms) {
       setClient(prev => ({ ...prev, payment_terms: data.default_payment_terms }));
     }
-  }
-
-  async function fetchPrimaryContact() {
-    const { data } = await supabase
-      .from('client_contacts')
-      .select('*')
-      .eq('client_id', id)
-      .eq('is_primary', true)
-      .eq('is_active', true)
-      .single();
-    
-    setPrimaryContact(data);
   }
 
   async function fetchClient() {
@@ -84,7 +77,7 @@ export default function ClientDetail() {
       .single();
     
     if (error) {
-      toast({ title: 'Error', description: 'Account not found', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Client not found', variant: 'destructive' });
       navigate('/clients');
     } else {
       setClient(data);
@@ -122,7 +115,7 @@ export default function ClientDetail() {
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Success', description: 'Account created' });
+        toast({ title: 'Success', description: 'Client created' });
         navigate(`/clients/${data.id}`);
       }
     } else {
@@ -134,21 +127,26 @@ export default function ClientDetail() {
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({ title: 'Success', description: 'Account updated' });
+        toast({ title: 'Success', description: 'Client updated' });
       }
     }
     setSaving(false);
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this account?')) return;
-    
+    if (!(await confirm({
+      title: 'Delete this client?',
+      description: 'Are you sure you want to delete this client?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
+
     const { error } = await supabase.from('clients').delete().eq('id', id);
-    
+
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Success', description: 'Account deleted' });
+      toast({ title: 'Success', description: 'Client deleted' });
       navigate('/clients');
     }
   }
@@ -167,7 +165,7 @@ export default function ClientDetail() {
         </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">
-            {isNew ? 'New Account' : client.name}
+            {isNew ? 'New Client' : client.name}
           </h1>
         </div>
         <div className="flex gap-2">
@@ -253,31 +251,11 @@ export default function ClientDetail() {
                 <CardTitle>Primary Contact</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {!isNew && primaryContact ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Contact Name</Label>
-                      <Input value={primaryContact.name || ''} readOnly className="bg-muted" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input value={primaryContact.email || ''} readOnly className="bg-muted" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input value={primaryContact.phone || ''} readOnly className="bg-muted" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Manage contacts in the Contacts tab
-                    </p>
-                  </>
-                ) : !isNew ? (
-                  <p className="text-muted-foreground">
-                    No primary contact set. Add contacts in the Contacts tab.
-                  </p>
+                {!isNew ? (
+                  <PrimaryContactSelector entityType="client" entityId={id!} />
                 ) : (
                   <p className="text-muted-foreground">
-                    Save the account first, then add contacts in the Contacts tab.
+                    Save the client first, then add contacts in the Contacts tab.
                   </p>
                 )}
                 <div className="border-t pt-4 space-y-4">
@@ -309,7 +287,7 @@ export default function ClientDetail() {
                   <div className="flex items-center gap-2">
                     <Switch
                       id="default_billable_expenses"
-                      checked={(client as any).default_billable_expenses ?? false}
+                      checked={(client as any).default_billable_expenses ?? true}
                       onCheckedChange={(checked) => setClient({ ...client, default_billable_expenses: checked } as any)}
                     />
                     <Label htmlFor="default_billable_expenses">Expenses Billable by Default</Label>
@@ -327,7 +305,7 @@ export default function ClientDetail() {
                   value={client.notes || ''}
                   onChange={(e) => setClient({ ...client, notes: e.target.value })}
                   rows={4}
-                  placeholder="Internal notes about this account..."
+                  placeholder="Internal notes about this client..."
                 />
               </CardContent>
             </Card>
@@ -336,7 +314,7 @@ export default function ClientDetail() {
 
         {!isNew && (
           <TabsContent value="contacts">
-            <ClientContacts clientId={id!} />
+            <AffiliatedContacts entityType="client" entityId={id!} />
           </TabsContent>
         )}
 
@@ -344,7 +322,7 @@ export default function ClientDetail() {
           <Card>
             <CardContent className="pt-6">
               {jobs.length === 0 ? (
-                <p className="text-muted-foreground">No jobs for this account yet</p>
+                <p className="text-muted-foreground">No jobs for this client yet</p>
               ) : (
                 <div className="space-y-2">
                   {jobs.map((job) => (
@@ -367,7 +345,7 @@ export default function ClientDetail() {
           <Card>
             <CardContent className="pt-6">
               {invoices.length === 0 ? (
-                <p className="text-muted-foreground">No invoices for this account yet</p>
+                <p className="text-muted-foreground">No invoices for this client yet</p>
               ) : (
                 <div className="space-y-2">
                   {invoices.map((inv) => (
@@ -378,7 +356,7 @@ export default function ClientDetail() {
                     >
                       <div className="font-medium">{inv.invoice_number}</div>
                       <div className="text-sm text-muted-foreground">
-                        ${inv.total.toFixed(2)} - {inv.status}
+                        {formatCurrency(inv.total)} - {inv.status}
                       </div>
                     </Link>
                   ))}

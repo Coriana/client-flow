@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, ArrowLeft, ArrowRight, Check, AlertCircle, Bookmark, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { todayLocal } from '@/lib/dates';
 
 interface ImportBillCSVDialogProps {
   open: boolean;
@@ -113,6 +115,7 @@ export default function ImportBillCSVDialog({
   vendorName 
 }: ImportBillCSVDialogProps) {
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState<Step>('upload');
@@ -398,7 +401,7 @@ export default function ImportBillCSVDialog({
           },
           body: JSON.stringify({ 
             save_mappings: true,
-            date: new Date().toISOString().split('T')[0]
+            date: todayLocal()
           }),
         }
       );
@@ -568,7 +571,7 @@ export default function ImportBillCSVDialog({
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
                 {savedMappingsCount > 0 && (
-                  <span className="text-green-600 mr-3">
+                  <span className="text-green-600 dark:text-green-400 mr-3">
                     <Bookmark className="h-3 w-3 inline mr-1" />
                     {savedMappingsCount} saved mappings applied
                   </span>
@@ -604,18 +607,18 @@ export default function ImportBillCSVDialog({
                         <p className="text-sm text-muted-foreground">
                           Qty: {row.original.quantity}
                           {multiplier > 1 && (
-                            <span className="text-blue-600 ml-1">
+                            <span className="text-blue-600 dark:text-blue-400 ml-1">
                               × {multiplier} = {effectiveQty} units
                               {row.detected_quantity && (
                                 <span className="text-xs ml-1">({row.detected_quantity.pattern} detected)</span>
                               )}
                             </span>
                           )}
-                          {' '}@ ${effectiveUnitPrice.toFixed(2)}/unit = ${row.original.line_total.toFixed(2)}
+                          {' '}@ {formatCurrency(effectiveUnitPrice)}/unit = {formatCurrency(row.original.line_total)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline">${row.original.line_total.toFixed(2)}</Badge>
+                        <Badge variant="outline">{formatCurrency(row.original.line_total)}</Badge>
                       </div>
                     </div>
                     
@@ -727,12 +730,12 @@ export default function ImportBillCSVDialog({
               <div>
                 <span className="font-medium">{matchedRows.length}</span> items
                 <span className="mx-2">•</span>
-                <span className="text-green-600">{inventoryCount} inventory restocks</span>
+                <span className="text-green-600 dark:text-green-400">{inventoryCount} inventory restocks</span>
                 <span className="mx-2">•</span>
-                <span className="text-yellow-600">{generalCount} general expenses</span>
+                <span className="text-yellow-600 dark:text-yellow-400">{generalCount} general expenses</span>
               </div>
               <div className="font-medium">
-                Total: ${totalAmount.toFixed(2)}
+                Total: {formatCurrency(totalAmount)}
               </div>
             </div>
           </div>
@@ -767,7 +770,7 @@ export default function ImportBillCSVDialog({
               
               <div className="border-t pt-4">
                 <p className="text-lg font-medium">
-                  Total Amount: ${totalAmount.toFixed(2)}
+                  Total Amount: {formatCurrency(totalAmount)}
                 </p>
               </div>
             </div>

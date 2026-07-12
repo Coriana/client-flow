@@ -7,8 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import RecordPaymentDialog from '@/components/RecordPaymentDialog';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, Trash2, Plus, Mail, Download, Lock, Package } from 'lucide-react';
+import { useBranding } from '@/contexts/BrandingContext';
+import { addDays, formatDateOnly, parseDateOnly, todayLocal } from '@/lib/dates';
+import { ArrowLeft, Save, Trash2, Plus, Mail, Download, Lock, Package, Send, DollarSign } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'>;
@@ -41,6 +45,8 @@ export default function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const { formatCurrency } = useBranding();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -53,7 +59,7 @@ export default function InvoiceDetail() {
   const [invoice, setInvoice] = useState<Partial<Invoice>>({
     invoice_number: '',
     client_id: '',
-    issue_date: new Date().toISOString().split('T')[0],
+    issue_date: todayLocal(),
     due_date: '',
     status: 'draft',
     notes: '',
@@ -68,9 +74,12 @@ export default function InvoiceDetail() {
   const [clientCredit, setClientCredit] = useState<number>(0);
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [autoInvoiceNumber, setAutoInvoiceNumber] = useState('');
+  const [markingAsSent, setMarkingAsSent] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
   const isDraft = invoice.status === 'draft';
   const isEditable = isNew || isDraft;
+  const isPayable = ['sent', 'partially_paid', 'overdue'].includes(invoice.status || '');
 
   // Get available status transitions based on current status
   function getAvailableStatuses(currentStatus: string): { value: string; label: string }[] {
@@ -143,10 +152,10 @@ export default function InvoiceDetail() {
         fetchAvailableJobAssets(invoice.client_id);
         fetchClientCredit(invoice.client_id);
         if (isNew && !invoice.due_date) {
-          const issueDate = new Date(invoice.issue_date || new Date());
+          const issueDate = parseDateOnly(invoice.issue_date || todayLocal());
           const paymentTerms = selectedClient.payment_terms || companySettings.default_payment_terms;
-          issueDate.setDate(issueDate.getDate() + paymentTerms);
-          setInvoice(prev => ({ ...prev, due_date: issueDate.toISOString().split('T')[0] }));
+          const dueDate = addDays(issueDate, paymentTerms);
+          setInvoice(prev => ({ ...prev, due_date: formatDateOnly(dueDate) }));
         }
       }
     }
@@ -386,7 +395,7 @@ export default function InvoiceDetail() {
     setSaving(true);
     
     if (!invoice.client_id || !invoice.invoice_number) {
-      toast({ title: 'Error', description: 'Account and Invoice Number are required', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Client and Invoice Number are required', variant: 'destructive' });
       setSaving(false);
       return;
     }
@@ -506,8 +515,13 @@ export default function InvoiceDetail() {
       toast({ title: 'Error', description: 'Only draft invoices can be deleted. Use Void for sent invoices.', variant: 'destructive' });
       return;
     }
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
-    
+    if (!(await confirm({
+      title: 'Delete this invoice?',
+      description: 'Are you sure you want to delete this invoice?',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
+
     await supabase.from('invoice_lines').delete().eq('invoice_id', id);
     const { error } = await supabase.from('invoices').delete().eq('id', id);
     
@@ -519,29 +533,51 @@ export default function InvoiceDetail() {
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
+  async function handleMarkAsSent() {
+    setMarkingAsSent(true);
+    const { error } = await supabase
+      .from('invoices')
+      .update({ status: 'sent' })
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setInvoice(prev => ({ ...prev, status: 'sent' }));
+      toast({ title: 'Success', description: 'Invoice marked as sent' });
+    }
+    setMarkingAsSent(false);
+  }
 
   async function handleDownloadPdf() {
     toast({ title: 'Generating PDF...', description: 'Please wait' });
-    
+
     try {
-      const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-        body: { invoiceId: id }
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/functions/generate-invoice-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ invoiceId: id })
       });
-      
-      if (error) throw error;
-      
-      // Create blob from HTML and open print dialog
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(data.html);
-        printWindow.document.close();
-        printWindow.onload = () => {
-          printWindow.print();
-        };
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${invoice.invoice_number}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Success', description: 'PDF downloaded' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -551,7 +587,8 @@ export default function InvoiceDetail() {
     return <div className="text-muted-foreground">Loading...</div>;
   }
 
-  const availableStatuses = getAvailableStatuses(invoice.status || 'draft');
+  const availableStatuses = getAvailableStatuses(invoice.status || 'draft')
+    .filter(s => !isNew || s.value !== 'void');
 
   return (
     <div className="space-y-6">
@@ -582,6 +619,18 @@ export default function InvoiceDetail() {
               <Button variant="outline" size="icon">
                 <Mail className="h-4 w-4" />
               </Button>
+              {isDraft && (
+                <Button variant="outline" onClick={handleMarkAsSent} disabled={markingAsSent}>
+                  <Send className="h-4 w-4 mr-2" />
+                  {markingAsSent ? 'Marking as Sent...' : 'Mark as Sent'}
+                </Button>
+              )}
+              {isPayable && (
+                <Button variant="outline" onClick={() => setRecordPaymentOpen(true)}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Record Payment
+                </Button>
+              )}
               {isDraft && (
                 <Button variant="destructive" size="icon" onClick={handleDelete}>
                   <Trash2 className="h-4 w-4" />
@@ -631,14 +680,14 @@ export default function InvoiceDetail() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="client">Account *</Label>
+                <Label htmlFor="client">Client *</Label>
                 <Select
                   value={invoice.client_id || ''}
                   onValueChange={(value) => setInvoice({ ...invoice, client_id: value })}
                   disabled={!isEditable}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
+                    <SelectValue placeholder="Select client" />
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map((c) => (
@@ -733,10 +782,10 @@ export default function InvoiceDetail() {
                             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Asset Rental</span>
                           )}
                           {line.timesheet_id && (
-                            <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded">Time</span>
+                            <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">Time</span>
                           )}
                           {line.expense_id && (
-                            <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded">Expense</span>
+                            <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded">Expense</span>
                           )}
                         </div>
                         <Input
@@ -859,8 +908,8 @@ export default function InvoiceDetail() {
                 <span>{formatCurrency(invoice.total || 0)}</span>
               </div>
               {clientCredit > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Account Credit</span>
+                <div className="flex justify-between text-green-600 dark:text-green-400">
+                  <span>Client Credit</span>
                   <span>-{formatCurrency(clientCredit)}</span>
                 </div>
               )}
@@ -907,6 +956,15 @@ export default function InvoiceDetail() {
           )}
         </div>
       </div>
+
+      {!isNew && (
+        <RecordPaymentDialog
+          open={recordPaymentOpen}
+          onOpenChange={setRecordPaymentOpen}
+          defaultInvoiceId={id}
+          onSuccess={fetchInvoice}
+        />
+      )}
     </div>
   );
 }

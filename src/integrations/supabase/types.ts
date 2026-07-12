@@ -970,6 +970,103 @@ export type Database = {
           },
         ]
       }
+      contact_affiliations: {
+        Row: {
+          client_id: string | null
+          contact_id: string
+          created_at: string
+          end_date: string | null
+          id: string
+          is_primary: boolean | null
+          notes: string | null
+          start_date: string | null
+          title: string | null
+          updated_at: string
+          vendor_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          contact_id: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          start_date?: string | null
+          title?: string | null
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          contact_id?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          start_date?: string | null
+          title?: string | null
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_affiliations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_affiliations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_affiliations_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number

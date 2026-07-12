@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranding } from '@/contexts/BrandingContext';
+import { addDays, formatDateOnly, formatDisplayDate, parseDateOnly, todayLocal } from '@/lib/dates';
 import { ArrowLeft, Save, Trash2, Plus, X, FileText, Pencil, AlertTriangle, Ban, Package, History } from 'lucide-react';
 import { useAssetConflicts } from '@/hooks/useAssetConflicts';
 import JobHistory from '@/components/JobHistory';
@@ -41,6 +44,8 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { formatCurrency } = useBranding();
+  const confirm = useConfirm();
   const isNew = id === 'new';
   
   const [loading, setLoading] = useState(!isNew);
@@ -94,14 +99,14 @@ export default function JobDetail() {
   });
   
   const [newTime, setNewTime] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     hours: '',
     description: '',
     is_billable: true, // Will be updated from settings
   });
-  
+
   const [newExpense, setNewExpense] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     amount: '',
     description: '',
     category: '',
@@ -112,7 +117,7 @@ export default function JobDetail() {
 
   const [newJobAsset, setNewJobAsset] = useState({
     asset_id: '',
-    rental_start_date: new Date().toISOString().split('T')[0],
+    rental_start_date: todayLocal(),
     rental_end_date: '',
     billing_frequency: 'monthly',
     billing_day: 1,
@@ -294,12 +299,22 @@ export default function JobDetail() {
     
     if (invoiceCount && invoiceCount > 0) {
       const confirmMsg = `This job has ${invoiceCount} invoice(s) attached. Deleting will unlink these invoices from the job. Continue?`;
-      if (!confirm(confirmMsg)) return;
-      
+      if (!(await confirm({
+        title: 'Delete this job?',
+        description: confirmMsg,
+        confirmLabel: 'Delete',
+        destructive: true,
+      }))) return;
+
       // Unlink invoices from this job (set job_id to null)
       await supabase.from('invoices').update({ job_id: null }).eq('job_id', id);
     } else {
-      if (!confirm('Are you sure you want to delete this job?')) return;
+      if (!(await confirm({
+        title: 'Delete this job?',
+        description: 'Are you sure you want to delete this job?',
+        confirmLabel: 'Delete',
+        destructive: true,
+      }))) return;
     }
     
     // Also delete related timesheets, expenses, and job_assets
@@ -338,7 +353,7 @@ export default function JobDetail() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Time entry added' });
-      setNewTime({ date: new Date().toISOString().split('T')[0], hours: '', description: '', is_billable: billableDefaults.time });
+      setNewTime({ date: todayLocal(), hours: '', description: '', is_billable: billableDefaults.time });
       setShowTimeForm(false);
       fetchRelatedData();
     }
@@ -364,7 +379,7 @@ export default function JobDetail() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Expense added' });
-      setNewExpense({ date: new Date().toISOString().split('T')[0], amount: '', description: '', category: '', is_billable: billableDefaults.expenses });
+      setNewExpense({ date: todayLocal(), amount: '', description: '', category: '', is_billable: billableDefaults.expenses });
       setShowExpenseForm(false);
       fetchRelatedData();
     }
@@ -400,14 +415,18 @@ export default function JobDetail() {
         return;
       } else if (conflict.conflictType === 'warning') {
         // Show warning but allow to proceed after confirmation
-        if (!confirm(`Warning: ${conflict.message}\n\nDo you want to proceed anyway?`)) {
+        if (!(await confirm({
+          title: 'Asset availability warning',
+          description: `${conflict.message}\n\nDo you want to proceed anyway?`,
+          confirmLabel: 'Proceed Anyway',
+        }))) {
           return;
         }
       }
     }
 
     // Calculate next invoice date based on start date and billing day
-    const startDate = new Date(newJobAsset.rental_start_date);
+    const startDate = parseDateOnly(newJobAsset.rental_start_date);
     let nextInvoiceDate = new Date(startDate);
     nextInvoiceDate.setDate(newJobAsset.billing_day);
     if (nextInvoiceDate <= startDate) {
@@ -424,7 +443,7 @@ export default function JobDetail() {
       rental_rate: parseFloat(newJobAsset.rental_rate),
       invoice_lead_days: newJobAsset.invoice_lead_days,
       billing_in_advance: newJobAsset.billing_in_advance,
-      next_invoice_date: nextInvoiceDate.toISOString().split('T')[0],
+      next_invoice_date: formatDateOnly(nextInvoiceDate),
       is_active: true,
     });
 
@@ -439,7 +458,7 @@ export default function JobDetail() {
       toast({ title: 'Success', description: 'Asset rental added' });
       setNewJobAsset({
         asset_id: '',
-        rental_start_date: new Date().toISOString().split('T')[0],
+        rental_start_date: todayLocal(),
         rental_end_date: '',
         billing_frequency: 'monthly',
         billing_day: 1,
@@ -531,7 +550,12 @@ export default function JobDetail() {
   }
 
   async function handleDeleteJobAsset(jaId: string) {
-    if (!confirm('Remove this asset from the job?')) return;
+    if (!(await confirm({
+      title: 'Remove this asset?',
+      description: 'Remove this asset from the job?',
+      confirmLabel: 'Remove',
+      destructive: true,
+    }))) return;
     
     // Get the asset_id before deleting
     const jobAssetToDelete = jobAssets.find(ja => ja.id === jaId);
@@ -636,7 +660,11 @@ export default function JobDetail() {
 
     // Check stock level
     if ((selectedItem.current_stock || 0) < quantity) {
-      if (!confirm(`Warning: Only ${selectedItem.current_stock} units in stock. This will create negative stock. Continue?`)) {
+      if (!(await confirm({
+        title: 'Insufficient stock',
+        description: `Only ${selectedItem.current_stock} units in stock. This will create negative stock. Continue?`,
+        confirmLabel: 'Continue',
+      }))) {
         return;
       }
     }
@@ -675,7 +703,12 @@ export default function JobDetail() {
   }
 
   async function handleDeleteInventoryMovement(movementId: string, itemId: string, quantity: number) {
-    if (!confirm('Remove this inventory usage? Stock will be returned.')) return;
+    if (!(await confirm({
+      title: 'Remove this inventory usage?',
+      description: 'Stock will be returned.',
+      confirmLabel: 'Remove',
+      destructive: true,
+    }))) return;
 
     // Get the item to restore stock
     const item = allItems.find(i => i.id === itemId);
@@ -731,8 +764,7 @@ export default function JobDetail() {
     const taxTotal = subtotal * (taxRate / 100);
     const total = subtotal + taxTotal;
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    const dueDate = addDays(new Date(), 30);
 
     const { data: invoice, error } = await supabase
       .from('invoices')
@@ -744,7 +776,7 @@ export default function JobDetail() {
         subtotal,
         tax_total: taxTotal,
         total,
-        due_date: dueDate.toISOString().split('T')[0],
+        due_date: formatDateOnly(dueDate),
         created_by: user?.id,
       })
       .select()
@@ -793,11 +825,6 @@ export default function JobDetail() {
     toast({ title: 'Success', description: 'Invoice created' });
     navigate(`/invoices/${invoice.id}`);
   }
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-  };
 
   const totalRevenue = invoices.reduce((sum, inv) => sum + inv.amount_paid, 0);
   const totalTimeCost = timesheets.reduce((sum, ts) => sum + (ts.hours * (ts.rate_override || job.hourly_rate || 0)), 0);
@@ -870,7 +897,7 @@ export default function JobDetail() {
               <CardTitle className="text-sm font-medium">Profit</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(profit)}
               </div>
             </CardContent>
@@ -1275,8 +1302,8 @@ export default function JobDetail() {
                         </Link>
                         <div className="text-sm text-muted-foreground">
                           {formatCurrency(ja.rental_rate)}/{ja.billing_frequency} • 
-                          Started {ja.rental_start_date}
-                          {ja.rental_end_date && ` • Ends ${ja.rental_end_date}`}
+                          Started {formatDisplayDate(ja.rental_start_date)}
+                          {ja.rental_end_date && ` • Ends ${formatDisplayDate(ja.rental_end_date)}`}
                           {!ja.is_active && ' • Inactive'}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -1381,11 +1408,11 @@ export default function JobDetail() {
                     return (
                       <div key={ts.id} className={`flex justify-between items-center p-3 rounded-lg hover:bg-muted ${isLocked ? 'opacity-60' : ''}`}>
                         <div>
-                          <div className="font-medium">{ts.hours} hours - {ts.date}</div>
+                          <div className="font-medium">{ts.hours} hours - {formatDisplayDate(ts.date)}</div>
                           <div className="text-sm text-muted-foreground">
                             {ts.description || 'No description'} • {ts.user_name}
-                            {ts.is_billable && <span className="ml-2 text-green-600">Billable</span>}
-                            {isLocked && <span className="ml-2 text-amber-600">Invoiced</span>}
+                            {ts.is_billable && <span className="ml-2 text-green-600 dark:text-green-400">Billable</span>}
+                            {isLocked && <span className="ml-2 text-amber-600 dark:text-amber-400">Invoiced</span>}
                           </div>
                         </div>
                         {!isLocked && (
@@ -1497,12 +1524,12 @@ export default function JobDetail() {
                     return (
                       <div key={exp.id} className={`flex justify-between items-center p-3 rounded-lg hover:bg-muted ${isLocked ? 'opacity-60' : ''}`}>
                         <div>
-                          <div className="font-medium">{formatCurrency(exp.amount)} - {exp.date}</div>
+                          <div className="font-medium">{formatCurrency(exp.amount)} - {formatDisplayDate(exp.date)}</div>
                           <div className="text-sm text-muted-foreground">
                             {exp.description}
                             {exp.category && ` • ${exp.category}`}
-                            {exp.is_billable && <span className="ml-2 text-green-600">Billable</span>}
-                            {isLocked && <span className="ml-2 text-amber-600">Invoiced</span>}
+                            {exp.is_billable && <span className="ml-2 text-green-600 dark:text-green-400">Billable</span>}
+                            {isLocked && <span className="ml-2 text-amber-600 dark:text-amber-400">Invoiced</span>}
                           </div>
                         </div>
                         {!isLocked && (
@@ -1559,7 +1586,7 @@ export default function JobDetail() {
                               <SelectItem key={item.id} value={item.id}>
                                 <div className="flex items-center gap-2">
                                   {item.name} ({item.current_stock} in stock)
-                                  {isLowStock && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                                  {isLowStock && <AlertTriangle className="h-3 w-3 text-amber-500 dark:text-amber-400" />}
                                 </div>
                               </SelectItem>
                             );
@@ -1614,7 +1641,7 @@ export default function JobDetail() {
                           {Math.abs(mov.quantity)} x {(mov as any).items?.name || 'Unknown Item'}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {new Date(mov.created_at).toLocaleDateString()}
+                          {formatDisplayDate(mov.created_at)}
                           {mov.notes && ` • ${mov.notes}`}
                           {mov.unit_cost && ` • ${formatCurrency(Math.abs(mov.quantity) * mov.unit_cost)}`}
                         </div>
@@ -1657,14 +1684,14 @@ export default function JobDetail() {
                       <div>
                         <div className="font-medium">{inv.invoice_number}</div>
                         <div className="text-sm text-muted-foreground">
-                          {inv.issue_date} • Due {inv.due_date}
+                          {formatDisplayDate(inv.issue_date)} • Due {formatDisplayDate(inv.due_date)}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-medium">{formatCurrency(inv.total)}</div>
                         <div className={`text-sm ${
-                          inv.status === 'paid' ? 'text-green-600' :
-                          inv.status === 'overdue' ? 'text-red-600' :
+                          inv.status === 'paid' ? 'text-green-600 dark:text-green-400' :
+                          inv.status === 'overdue' ? 'text-red-600 dark:text-red-400' :
                           'text-muted-foreground'
                         }`}>
                           {inv.status}

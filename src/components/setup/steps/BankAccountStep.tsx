@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Landmark } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { todayLocal } from '@/lib/dates';
 import { toast } from 'sonner';
 
 interface BankAccountStepProps {
@@ -40,7 +41,7 @@ export function BankAccountStep({ data, onUpdate, onNext, onBack }: BankAccountS
           account_number: data.accountNumber.trim() || null,
           opening_balance: data.openingBalance || 0,
           current_balance: data.openingBalance || 0,
-          opening_balance_date: data.openingBalanceDate || new Date().toISOString().split('T')[0],
+          opening_balance_date: data.openingBalanceDate || todayLocal(),
           is_default: true,
           is_active: true,
         });

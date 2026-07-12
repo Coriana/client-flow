@@ -431,3 +431,12 @@ curl -s -X POST "$BASE_URL/clients" \
   -H "Content-Type: application/json" \
   -d '{"name": "Test Client", "is_active": 1}' | jq .
 ```
+
+---
+
+## API reference (OpenAPI)
+
+The full machine-readable contract for this API — every resource, path, request/response
+schema, auth scheme, and error shape — is defined in [`openapi.yaml`](./openapi.yaml) at the
+repo root (OpenAPI 3.1). Load it into any OpenAPI-aware tool (Redoc, Swagger UI, Postman,
+an LLM/codegen client, etc.) to browse or generate clients from it.

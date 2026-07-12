@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  FileText, 
-  CreditCard, 
-  Package, 
-  HardDrive, 
-  AlertCircle, 
-  BarChart3, 
+import { useTheme } from 'next-themes';
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  FileText,
+  CreditCard,
+  Package,
+  HardDrive,
+  AlertCircle,
+  BarChart3,
   Settings,
   Menu,
   X,
@@ -20,7 +21,12 @@ import {
   Key,
   HelpCircle,
   History,
-  User
+  User,
+  Search,
+  Sun,
+  Moon,
+  Monitor,
+  Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,7 +34,14 @@ import { usePermissions } from '@/contexts/PermissionContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import MyProfileDialog from '@/components/MyProfileDialog';
+import CommandPalette, { getCommandShortcutLabel } from '@/components/CommandPalette';
 
 interface NavItem {
   name: string;
@@ -37,41 +50,73 @@ interface NavItem {
   resource?: string; // Resource to check for visibility
 }
 
-const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Accounts', href: '/clients', icon: Users, resource: 'clients' },
-  { name: 'Jobs', href: '/jobs', icon: Briefcase, resource: 'jobs' },
-  { name: 'Invoices', href: '/invoices', icon: FileText, resource: 'invoices' },
-  { name: 'Payments', href: '/payments', icon: CreditCard, resource: 'payments' },
-  { name: 'Banking', href: '/banking', icon: Building2, resource: 'banking' },
-  { name: 'Vendors', href: '/vendors', icon: Store, resource: 'vendors' },
-  { name: 'Inventory', href: '/inventory', icon: Package, resource: 'inventory' },
-  { name: 'Assets', href: '/assets', icon: HardDrive, resource: 'assets' },
-  { name: 'Issues', href: '/issues', icon: AlertCircle, resource: 'issues' },
-  { name: 'Knowledge Base', href: '/knowledge-base', icon: FileText, resource: 'kb' },
-  { name: 'Locations', href: '/locations', icon: Building2, resource: 'locations' },
-  { name: 'Reports', href: '/reports', icon: BarChart3, resource: 'reports' },
-  { name: 'Team', href: '/team', icon: Users, resource: 'team' },
-  { name: 'Roles', href: '/roles', icon: Shield, resource: 'settings' },
-  { name: 'API Keys', href: '/api-keys', icon: Key, resource: 'settings' },
-  { name: 'Activity Log', href: '/activity-log', icon: History, resource: 'reports' },
-  { name: 'Settings', href: '/settings', icon: Settings, resource: 'settings' },
-  { name: 'Help & Docs', href: '/docs', icon: HelpCircle },
+interface NavSection {
+  label?: string; // Omit for an ungrouped item rendered without a header
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  { items: [{ name: 'Dashboard', href: '/', icon: LayoutDashboard }] },
+  {
+    label: 'Work',
+    items: [
+      { name: 'Clients', href: '/clients', icon: Users, resource: 'clients' },
+      { name: 'Contacts', href: '/contacts', icon: User, resource: 'clients' },
+      { name: 'Jobs', href: '/jobs', icon: Briefcase, resource: 'jobs' },
+      { name: 'Issues', href: '/issues', icon: AlertCircle, resource: 'issues' },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { name: 'Invoices', href: '/invoices', icon: FileText, resource: 'invoices' },
+      { name: 'Payments', href: '/payments', icon: CreditCard, resource: 'payments' },
+      { name: 'Banking', href: '/banking', icon: Building2, resource: 'banking' },
+      { name: 'Vendors', href: '/vendors', icon: Store, resource: 'vendors' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { name: 'Inventory', href: '/inventory', icon: Package, resource: 'inventory' },
+      { name: 'Assets', href: '/assets', icon: HardDrive, resource: 'assets' },
+      { name: 'Locations', href: '/locations', icon: Building2, resource: 'locations' },
+      { name: 'Knowledge Base', href: '/knowledge-base', icon: FileText, resource: 'kb' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { name: 'Reports', href: '/reports', icon: BarChart3, resource: 'reports' },
+      { name: 'Activity Log', href: '/activity-log', icon: History, resource: 'reports' },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { name: 'Team', href: '/team', icon: Users, resource: 'team' },
+      { name: 'Roles', href: '/roles', icon: Shield, resource: 'settings' },
+      { name: 'API Keys', href: '/api-keys', icon: Key, resource: 'settings' },
+      { name: 'Settings', href: '/settings', icon: Settings, resource: 'settings' },
+    ],
+  },
+  { items: [{ name: 'Help & Docs', href: '/docs', icon: HelpCircle }] },
 ];
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { canRead, role, loading: permissionsLoading } = usePermissions();
   const { branding } = useBranding();
+  const { theme, setTheme } = useTheme();
 
-  // Filter navigation based on permissions
-  const visibleNavigation = navigation.filter(item => {
-    if (!item.resource) return true; // Always show items without resource check
-    return canRead(item.resource);
-  });
+  const openCommandPalette = () => {
+    setCommandPaletteOpen(true);
+    setSidebarOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,24 +150,50 @@ export default function AppLayout() {
         </div>
         
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {visibleNavigation.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.href !== '/' && location.pathname.startsWith(item.href));
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="mb-2 flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          >
+            <Search className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">Search…</span>
+            <kbd className="pointer-events-none inline-flex h-5 shrink-0 select-none items-center rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/60">
+              {getCommandShortcutLabel()}
+            </kbd>
+          </button>
+
+          {navSections.map((section, sectionIndex) => {
+            const items = section.items.filter(item => !item.resource || canRead(item.resource));
+            if (items.length === 0) return null;
+
             return (
-              <Link
-                key={item.name}
-                to={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                  isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              <div key={section.label ?? `section-${sectionIndex}`}>
+                {section.label && (
+                  <p className="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+                    {section.label}
+                  </p>
                 )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
+                {items.map((item) => {
+                  const isActive = location.pathname === item.href ||
+                    (item.href !== '/' && location.pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -146,24 +217,50 @@ export default function AppLayout() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex-1"
               onClick={() => setProfileOpen(true)}
             >
               <User className="h-4 w-4 mr-2" />
               Profile
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex-1"
               onClick={signOut}
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign out
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="relative shrink-0 px-2">
+                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Toggle theme</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme('light')}>
+                  <Sun className="h-4 w-4 mr-2" />
+                  Light
+                  {theme === 'light' && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                  <Moon className="h-4 w-4 mr-2" />
+                  Dark
+                  {theme === 'dark' && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')}>
+                  <Monitor className="h-4 w-4 mr-2" />
+                  System
+                  {theme === 'system' && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </aside>
@@ -192,6 +289,7 @@ export default function AppLayout() {
       </div>
 
       <MyProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
     </div>
   );
 }

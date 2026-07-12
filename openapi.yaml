@@ -1,0 +1,549 @@
+openapi: 3.1.0
+info:
+  title: Client Flow External API
+  version: "1.0.0"
+  description: |
+    Generic, table-backed REST API for integrating external systems with Client Flow.
+
+    All endpoints live under a single `/external/{resource}` family of routes. `{resource}`
+    selects one of a fixed set of tables (see the `resource` path parameter for the exact
+    list); there is no way to address a table that isn't in that list.
+
+    ### Authentication
+
+    Every request must include `Authorization: Bearer <api_key>`, where `<api_key>` is a key
+    issued from the app's API Keys settings page (keys look like `sk_live_...`). Requests with
+    a missing, malformed, unknown, expired, or revoked key receive `401` with a JSON body
+    `{ "error": "<reason>" }`. The exact `error` message varies by cause, for example:
+      - `Missing or invalid Authorization header` — no `Bearer ` prefix present
+      - `Invalid or revoked API key` — key not found, or found but inactive
+      - `API key has expired` — key's `expires_at` is in the past
+
+    ### Authorization (scopes + user permissions)
+
+    Access to a resource is gated two independent ways, both of which must pass:
+      1. **API key scope** — the key's `scopes` list must contain `*` (all resources) or the
+         permission group for the requested resource (see mapping below). Failing this
+         returns `403 { "error": "API key does not have access to this resource" }`.
+      2. **Owning user's permission** — the user who owns the API key must have `read`
+         permission (for `GET`) or `write` permission (for `POST`/`PUT`/`PATCH`/`DELETE`) on
+         that same permission group, via their assigned role(s). Failing this returns
+         `403 { "error": "Permission denied: no read access to this resource" }` (GET) or
+         `403 { "error": "Permission denied: no write access to this resource" }` (writes).
+
+      Most resources use their own name as the permission group (e.g. `clients` is gated by
+      the `clients` group). The exceptions are:
+        - `items` → `inventory`
+        - `timesheets` → `jobs`
+        - `bank-accounts`, `bank-transactions` → `banking`
+        - `profiles` → `team`
+        - `kb-articles`, `kb-attachments`, `kb-article-issues` → `kb`
+        - `location-contacts` → `locations`
+        - `bill-import-sessions` → `purchases`
+
+    ### Records are free-form
+
+    Request and response bodies for individual records are plain JSON objects of
+    column/value pairs matching the underlying table's real columns — there is no fixed
+    schema beyond "must be real columns of that table". Sending an unknown column name in a
+    `POST`, `PUT`, or `PATCH` body returns `400 { "error": "Invalid column name" }`.
+
+    ### Listing has no filtering or pagination
+
+    `GET /external/{resource}` always runs `SELECT * FROM <table> LIMIT 100` — it returns at
+    most 100 rows, in whatever order SQLite returns them, with no query-string filtering,
+    sorting, or pagination support of any kind.
+servers:
+  - url: http://localhost:3001/api
+    description: >-
+      Local development server. The host and port are deployment-specific — replace this
+      with the actual origin (and, where applicable, HTTPS) for your environment. In all
+      cases the external API is mounted at `/api/external`, so combined with the paths
+      below the full URL is `{server}/external/{resource}[/{id}]`.
+security:
+  - bearerAuth: []
+tags:
+  - name: Records
+    description: >-
+      Generic CRUD operations that behave uniformly across every supported resource/table.
+paths:
+  /external/{resource}:
+    parameters:
+      - $ref: '#/components/parameters/resource'
+    get:
+      operationId: listRecords
+      summary: List records for a resource
+      description: >-
+        Returns up to 100 rows from the resource's underlying table
+        (`SELECT * FROM <table> LIMIT 100`). No filtering, sorting, or pagination
+        parameters are supported.
+      tags: [Records]
+      responses:
+        '200':
+          description: A page of up to 100 records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordListResponse'
+              examples:
+                clients:
+                  $ref: '#/components/examples/ClientListResponse'
+                invoices:
+                  $ref: '#/components/examples/InvoiceListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidResource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createRecord
+      summary: Create a record
+      description: >-
+        Inserts a new row. The request body is a free-form object of column/value pairs
+        for the resource's table.
+
+          - If `id` is omitted, a UUID is generated automatically.
+          - For `jobs`, `job_number` is auto-assigned (from the shared, transaction-guarded
+            company counter) if omitted.
+          - For `invoices`, `invoice_number` is auto-assigned the same way if omitted.
+          - Any key that is not a real column of the underlying table causes a
+            `400 { "error": "Invalid column name" }` response before any write happens.
+          - Other database-level failures (e.g. a `NOT NULL` or `UNIQUE`/foreign-key
+            constraint violation) also return `400` with the underlying error message in
+            `error`.
+      tags: [Records]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Record'
+            examples:
+              createClient:
+                $ref: '#/components/examples/ClientCreateRequest'
+              createInvoice:
+                $ref: '#/components/examples/InvoiceCreateRequest'
+      responses:
+        '201':
+          description: The newly created record, as stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+              examples:
+                createdClient:
+                  $ref: '#/components/examples/ClientRecordResponse'
+                createdInvoice:
+                  $ref: '#/components/examples/InvoiceRecordResponse'
+        '400':
+          description: >-
+            Invalid resource, an unknown column name in the request body, or another
+            database constraint error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidColumn:
+                  summary: Unknown column in request body
+                  value:
+                    error: Invalid column name
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /external/{resource}/{id}:
+    parameters:
+      - $ref: '#/components/parameters/resource'
+      - $ref: '#/components/parameters/id'
+    get:
+      operationId: getRecord
+      summary: Get a single record by ID
+      description: >-
+        Looks up one row by primary key. If no row matches `id`, the response is still
+        `200`, with `data` set to `null` — this endpoint never returns `404`.
+      tags: [Records]
+      responses:
+        '200':
+          description: The record, or `null` if no record with that ID exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableRecordResponse'
+              examples:
+                foundClient:
+                  $ref: '#/components/examples/ClientRecordResponse'
+                notFound:
+                  $ref: '#/components/examples/ClientNotFoundResponse'
+        '400':
+          $ref: '#/components/responses/InvalidResource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: updateRecord
+      summary: Replace/update a record by ID (full update)
+      description: >-
+        Applies the given column/value pairs with a `SET` update. Only the columns present
+        in the request body are written — this is the same handler as `PATCH` and does not
+        require every column to be supplied.
+      tags: [Records]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Record'
+            examples:
+              updateClient:
+                $ref: '#/components/examples/ClientUpdateRequest'
+      responses:
+        '200':
+          description: The updated record, as stored after the update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+              examples:
+                updatedClient:
+                  $ref: '#/components/examples/ClientRecordResponse'
+        '400':
+          description: An unknown column name in the request body, or a database constraint error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidColumn:
+                  value:
+                    error: Invalid column name
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: patchRecord
+      summary: Partially update a record by ID
+      description: >-
+        Identical behavior to `PUT` on this same path — both apply a `SET` update covering
+        only the columns present in the request body. Provided as an alias for clients that
+        prefer `PATCH` semantics for partial updates.
+      tags: [Records]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Record'
+            examples:
+              patchInvoiceStatus:
+                $ref: '#/components/examples/InvoicePatchRequest'
+      responses:
+        '200':
+          description: The updated record, as stored after the update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+              examples:
+                updatedInvoice:
+                  $ref: '#/components/examples/InvoiceRecordResponse'
+        '400':
+          description: An unknown column name in the request body, or a database constraint error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidColumn:
+                  value:
+                    error: Invalid column name
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteRecord
+      summary: Delete a record by ID
+      description: Deletes the row by primary key. No response body is returned on success.
+      tags: [Records]
+      responses:
+        '204':
+          description: Record deleted successfully. No response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: sk_live_...
+      description: >-
+        API key issued from the app's API Keys settings page, sent as
+        `Authorization: Bearer <api_key>`. Keys are prefixed `sk_live_`.
+  parameters:
+    resource:
+      name: resource
+      in: path
+      required: true
+      description: >-
+        The table/resource to operate on. This is a fixed enum — any value outside this
+        list returns `400 { "error": "Invalid resource", "available_resources": [...] }`.
+      schema:
+        type: string
+        enum:
+          - clients
+          - jobs
+          - invoices
+          - payments
+          - assets
+          - issues
+          - vendors
+          - items
+          - expenses
+          - timesheets
+          - bank-accounts
+          - bank-transactions
+          - profiles
+          - kb-articles
+          - kb-attachments
+          - kb-article-issues
+          - locations
+          - location-contacts
+          - bill-import-sessions
+      example: clients
+    id:
+      name: id
+      in: path
+      required: true
+      description: Primary key (`id` column) of the record.
+      schema:
+        type: string
+      example: 3fa2b41e-9c2a-4b3a-8a1a-2b6e9b6a1a11
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message.
+      additionalProperties: false
+    InvalidResourceError:
+      type: object
+      required: [error, available_resources]
+      properties:
+        error:
+          type: string
+          example: Invalid resource
+        available_resources:
+          type: array
+          description: The full list of valid values for the `resource` path parameter.
+          items:
+            type: string
+      additionalProperties: false
+    Record:
+      type: object
+      description: >-
+        Free-form column/value pairs matching the real columns of the underlying table.
+        Field names and types vary per resource; see `server/db/schema.sql` in the
+        Client Flow repository for each table's authoritative column list.
+      additionalProperties: true
+    RecordListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Record'
+    RecordResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Record'
+    NullableRecordResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          description: The matching record, or `null` if no record with the given ID exists.
+          oneOf:
+            - $ref: '#/components/schemas/Record'
+            - type: 'null'
+  responses:
+    Unauthorized:
+      description: >-
+        Missing, malformed, unknown, expired, or revoked API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidKey:
+              summary: Invalid or revoked key
+              value:
+                error: Invalid or revoked API key
+            expiredKey:
+              summary: Expired key
+              value:
+                error: API key has expired
+            missingHeader:
+              summary: Missing Authorization header
+              value:
+                error: Missing or invalid Authorization header
+    Forbidden:
+      description: >-
+        The API key's scopes do not include this resource, or the key's owning user lacks
+        read/write permission on the resource's permission group.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            scopeDenied:
+              summary: Key scope does not cover this resource
+              value:
+                error: API key does not have access to this resource
+            readDenied:
+              summary: User lacks read permission
+              value:
+                error: 'Permission denied: no read access to this resource'
+            writeDenied:
+              summary: User lacks write permission
+              value:
+                error: 'Permission denied: no write access to this resource'
+    NotFound:
+      description: No record exists with the given ID.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notFound:
+              value:
+                error: Record not found
+    InvalidResource:
+      description: >-
+        The `resource` path segment is not one of the supported resources.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InvalidResourceError'
+          examples:
+            invalidResource:
+              value:
+                error: Invalid resource
+                available_resources:
+                  - clients
+                  - jobs
+                  - invoices
+                  - payments
+                  - assets
+                  - issues
+                  - vendors
+                  - items
+                  - expenses
+                  - timesheets
+                  - bank-accounts
+                  - bank-transactions
+                  - profiles
+                  - kb-articles
+                  - kb-attachments
+                  - kb-article-issues
+                  - locations
+                  - location-contacts
+                  - bill-import-sessions
+  examples:
+    ClientCreateRequest:
+      summary: Create a client
+      value:
+        name: Acme Corp
+        contact_email: billing@acme.com
+        contact_phone: '+1-555-0100'
+        is_active: 1
+    ClientUpdateRequest:
+      summary: Update a client
+      value:
+        contact_name: Jane Smith
+        payment_terms: 14
+    ClientRecordResponse:
+      summary: A single client record
+      value:
+        data: &ClientRecordValue
+          id: 3fa2b41e-9c2a-4b3a-8a1a-2b6e9b6a1a11
+          name: Acme Corp
+          trading_name: Acme
+          abn: null
+          acn: null
+          contact_name: Jane Smith
+          contact_email: billing@acme.com
+          contact_phone: '+1-555-0100'
+          billing_address: '123 Main St, Springfield'
+          payment_terms: 30
+          notes: null
+          default_billable_time: 1
+          default_billable_expenses: 1
+          location_id: null
+          is_active: 1
+          user_id: null
+          created_at: '2026-01-15T09:00:00.000Z'
+          updated_at: '2026-01-15T09:00:00.000Z'
+    ClientListResponse:
+      summary: A page of clients
+      value:
+        data:
+          - *ClientRecordValue
+    ClientNotFoundResponse:
+      summary: No client with that ID
+      value:
+        data: null
+    InvoiceCreateRequest:
+      summary: Create an invoice
+      value:
+        client_id: 3fa2b41e-9c2a-4b3a-8a1a-2b6e9b6a1a11
+        due_date: '2026-02-08'
+        status: draft
+        subtotal: 1000
+        tax_total: 100
+        total: 1100
+    InvoicePatchRequest:
+      summary: Mark an invoice as sent
+      value:
+        status: sent
+    InvoiceRecordResponse:
+      summary: A single invoice record
+      value:
+        data: &InvoiceRecordValue
+          id: b1f6a2b0-1e2d-4a3b-9c4d-5e6f7a8b9c0d
+          invoice_number: INV-00001
+          client_id: 3fa2b41e-9c2a-4b3a-8a1a-2b6e9b6a1a11
+          job_id: null
+          issue_date: '2026-01-25'
+          due_date: '2026-02-08'
+          status: draft
+          subtotal: 1000
+          tax_total: 100
+          total: 1100
+          amount_paid: 0
+          notes: null
+          terms: null
+          created_by: null
+          created_at: '2026-01-25T10:00:00.000Z'
+          updated_at: '2026-01-25T10:00:00.000Z'
+    InvoiceListResponse:
+      summary: A page of invoices
+      value:
+        data:
+          - *InvoiceRecordValue

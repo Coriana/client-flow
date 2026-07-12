@@ -29,18 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
 import { uuid } from '@/lib/utils';
 import { PermissionGate } from '@/components/PermissionGate';
 import { format } from 'date-fns';
@@ -106,7 +97,9 @@ export default function BankAccountDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { formatCurrency } = useBranding();
 
   const [account, setAccount] = useState<BankAccount | null>(null);
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
@@ -227,6 +220,12 @@ export default function BankAccountDetail() {
 
   const handleDeleteAccount = async () => {
     if (!id) return;
+    if (!(await confirm({
+      title: 'Delete bank account?',
+      description: 'This will permanently delete this bank account and all its transactions.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
     try {
       const { error } = await supabase.from('bank_accounts').delete().eq('id', id);
       if (error) throw error;
@@ -477,6 +476,12 @@ export default function BankAccountDetail() {
   };
 
   const handleDeleteTransaction = async (transactionId: string) => {
+    if (!(await confirm({
+      title: 'Delete transaction?',
+      description: 'This will permanently delete this transaction.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }))) return;
     try {
       const { error } = await supabase.from('bank_transactions').delete().eq('id', transactionId);
       if (error) throw error;
@@ -576,8 +581,8 @@ export default function BankAccountDetail() {
             <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold ${Number(account.current_balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${Number(account.current_balance).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+            <p className={`text-2xl font-bold ${Number(account.current_balance) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {formatCurrency(Number(account.current_balance))}
             </p>
           </CardContent>
         </Card>
@@ -587,19 +592,19 @@ export default function BankAccountDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              ${Number(account.opening_balance).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+              {formatCurrency(Number(account.opening_balance))}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
               Reconciled
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">{reconciledCount}</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{reconciledCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -659,7 +664,7 @@ export default function BankAccountDetail() {
                             className="hover:opacity-80"
                           >
                             {transaction.is_reconciled ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                             ) : (
                               <Circle className="h-5 w-5 text-muted-foreground" />
                             )}
@@ -669,14 +674,14 @@ export default function BankAccountDetail() {
                         <TableCell className="max-w-xs truncate">{transaction.description}</TableCell>
                         <TableCell>
                           {transaction.is_reconciled && transaction.matched_payment?.invoice ? (
-                            <span className="text-green-600 font-medium">
+                            <span className="text-green-600 dark:text-green-400 font-medium">
                               {transaction.matched_payment.invoice.invoice_number}
                               {transaction.matched_payment.invoice.client && (
                                 <span className="text-muted-foreground font-normal"> - {transaction.matched_payment.invoice.client.name}</span>
                               )}
                             </span>
                           ) : transaction.is_reconciled && transaction.matched_purchase ? (
-                            <span className="text-red-600 font-medium">
+                            <span className="text-red-600 dark:text-red-400 font-medium">
                               {transaction.matched_purchase.vendor?.name || transaction.matched_purchase.vendor_name || transaction.matched_purchase.description}
                             </span>
                           ) : (
@@ -684,43 +689,30 @@ export default function BankAccountDetail() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`flex items-center justify-end gap-1 ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <span className={`flex items-center justify-end gap-1 ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {transaction.amount >= 0 ? (
                               <TrendingUp className="h-3 w-3" />
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            ${Math.abs(transaction.amount).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                            {formatCurrency(Math.abs(transaction.amount))}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           {transaction.balance_after != null
-                            ? `$${Number(transaction.balance_after).toLocaleString('en-AU', { minimumFractionDigits: 2 })}`
+                            ? formatCurrency(Number(transaction.balance_after))
                             : '-'}
                         </TableCell>
                         <TableCell>
                           <PermissionGate resource="banking" action="write">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete transaction?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete this transaction.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteTransaction(transaction.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDeleteTransaction(transaction.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </PermissionGate>
                         </TableCell>
                       </TableRow>
@@ -785,26 +777,10 @@ export default function BankAccountDetail() {
               <Button onClick={handleUpdateAccount} disabled={saving} className="flex-1">
                 {saving ? 'Saving...' : 'Save Changes'}
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete bank account?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete this bank account and all its transactions.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAccount}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button variant="destructive" onClick={handleDeleteAccount}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -992,20 +968,20 @@ export default function BankAccountDetail() {
                       <p className="text-sm text-muted-foreground">
                         {parsedTransactions.length} transactions found
                         {duplicateCount > 0 && (
-                          <span className="text-amber-600 ml-1">
+                          <span className="text-amber-600 dark:text-amber-400 ml-1">
                             ({duplicateCount} potential duplicates)
                           </span>
                         )}
                       </p>
                     </div>
                     {duplicateCount > 0 && (
-                      <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                      <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-amber-900">
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
                             {duplicateCount} duplicate transactions detected
                           </p>
-                          <p className="text-xs text-amber-700">
+                          <p className="text-xs text-amber-700 dark:text-amber-400">
                             These match existing transactions by date, description, and amount.
                           </p>
                         </div>
@@ -1018,7 +994,7 @@ export default function BankAccountDetail() {
                               onChange={() => setDuplicateAction('skip')}
                               className="h-4 w-4"
                             />
-                            <span className="text-sm text-amber-900">Skip duplicates</span>
+                            <span className="text-sm text-amber-900 dark:text-amber-200">Skip duplicates</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1028,7 +1004,7 @@ export default function BankAccountDetail() {
                               onChange={() => setDuplicateAction('overwrite')}
                               className="h-4 w-4"
                             />
-                            <span className="text-sm text-amber-900">Overwrite duplicates</span>
+                            <span className="text-sm text-amber-900 dark:text-amber-200">Overwrite duplicates</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1038,7 +1014,7 @@ export default function BankAccountDetail() {
                               onChange={() => setDuplicateAction('import')}
                               className="h-4 w-4"
                             />
-                            <span className="text-sm text-amber-900">Import all anyway</span>
+                            <span className="text-sm text-amber-900 dark:text-amber-200">Import all anyway</span>
                           </label>
                         </div>
                       </div>
@@ -1059,20 +1035,20 @@ export default function BankAccountDetail() {
                   </TableHeader>
                   <TableBody>
                     {parsedTransactions.slice(0, 50).map((t, idx) => (
-                      <TableRow key={idx} className={t.isDuplicate ? 'bg-amber-50/50' : ''}>
+                      <TableRow key={idx} className={t.isDuplicate ? 'bg-amber-50/50 dark:bg-amber-950/50' : ''}>
                         <TableCell>
                           {t.isDuplicate ? (
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            <AlertTriangle className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                           ) : (
-                            <Check className="h-4 w-4 text-green-500" />
+                            <Check className="h-4 w-4 text-green-500 dark:text-green-400" />
                           )}
                         </TableCell>
                         <TableCell>{t.date}</TableCell>
                         <TableCell className="max-w-xs truncate">{t.description}</TableCell>
-                        <TableCell className={`text-right ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ${Math.abs(t.amount).toFixed(2)}
+                        <TableCell className={`text-right ${t.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {formatCurrency(Math.abs(t.amount))}
                         </TableCell>
-                        <TableCell className="text-right">{t.balance != null ? `$${t.balance.toFixed(2)}` : '-'}</TableCell>
+                        <TableCell className="text-right">{t.balance != null ? formatCurrency(t.balance) : '-'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

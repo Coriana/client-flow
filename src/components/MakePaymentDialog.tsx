@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, X, Plus, Trash2, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { todayLocal } from '@/lib/dates';
 import { uuid } from '@/lib/utils';
 import ImportBillCSVDialog, { ImportedAllocation } from '@/components/purchases/ImportBillCSVDialog';
 
@@ -52,6 +54,7 @@ interface MakePaymentDialogProps {
 
 export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: MakePaymentDialogProps) {
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [saving, setSaving] = useState(false);
@@ -65,7 +68,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
   const [defaultGstRate, setDefaultGstRate] = useState(10); // Default 10% GST
   
   const [purchase, setPurchase] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     vendor_id: '',
     vendor_name: '',
     description: '',
@@ -322,7 +325,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
     
     // Reset form
     setPurchase({
-      date: new Date().toISOString().split('T')[0],
+      date: todayLocal(),
       vendor_id: '',
       vendor_name: '',
       description: '',
@@ -355,7 +358,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle>Make Payment / Record Expense</DialogTitle>
+              <DialogTitle>Pay Vendor / Record Expense</DialogTitle>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -683,7 +686,7 @@ export default function MakePaymentDialog({ open, onOpenChange, onSuccess }: Mak
             ))}
             
             <div className="text-sm text-muted-foreground">
-              Allocated: ${allocations.reduce((sum, a) => sum + a.amount, 0).toFixed(2)} / Total: ${total.toFixed(2)}
+              Allocated: {formatCurrency(allocations.reduce((sum, a) => sum + a.amount, 0))} / Total: {formatCurrency(total)}
             </div>
           </div>
           

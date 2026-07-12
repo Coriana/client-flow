@@ -19,8 +19,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Search, ChevronDown, Send, Download, Mail } from 'lucide-react';
+import { Plus, Search, ChevronDown, Send, Download, Mail, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/contexts/BrandingContext';
+import { formatDisplayDate, todayLocal } from '@/lib/dates';
+import { EmptyState } from '@/components/EmptyState';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Invoice = Tables<'invoices'> & { clients?: { name: string; contact_email?: string; email?: string } | null };
@@ -35,12 +38,23 @@ const statusColors: Record<string, string> = {
   written_off: 'destructive',
 };
 
+const STATUS_FILTER_ORDER = ['draft', 'sent', 'partially_paid', 'paid', 'overdue', 'void', 'written_off'];
+
+function humanizeStatus(status: string) {
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const { formatCurrency } = useBranding();
 
   useEffect(() => {
     fetchInvoices();
@@ -60,17 +74,16 @@ export default function Invoices() {
     setLoading(false);
   }
 
-  const filteredInvoices = invoices.filter(inv => 
-    inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-    inv.clients?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const statusCounts = STATUS_FILTER_ORDER.reduce<Record<string, number>>((acc, status) => {
+    acc[status] = invoices.filter(inv => inv.status === status).length;
+    return acc;
+  }, {});
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-    }).format(amount);
-  };
+  const filteredInvoices = invoices.filter(inv =>
+    (statusFilter === 'all' || inv.status === statusFilter) &&
+    (inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+    inv.clients?.name?.toLowerCase().includes(search.toLowerCase()))
+  );
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -89,6 +102,11 @@ export default function Invoices() {
       setSelectedIds(new Set(filteredInvoices.map(inv => inv.id)));
     }
   };
+
+  function clearFilters() {
+    setSearch('');
+    setStatusFilter('all');
+  }
 
   const selectedInvoices = filteredInvoices.filter(inv => selectedIds.has(inv.id));
   const selectedDrafts = selectedInvoices.filter(inv => inv.status === 'draft');
@@ -122,27 +140,36 @@ export default function Invoices() {
       return;
     }
 
-    toast({ title: 'Generating PDFs...', description: `Downloading ${selectedInvoices.length} invoice(s)` });
+    toast({ title: 'Generating PDF...', description: `Preparing ${selectedInvoices.length} invoice(s)` });
 
-    for (const inv of selectedInvoices) {
-      try {
-        const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-          body: { invoiceId: inv.id }
-        });
-        
-        if (error) throw error;
-        
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(data.html);
-          printWindow.document.close();
-          printWindow.onload = () => {
-            printWindow.print();
-          };
-        }
-      } catch (error: any) {
-        toast({ title: 'Error', description: `Failed to generate PDF for ${inv.invoice_number}: ${error.message}`, variant: 'destructive' });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/functions/generate-invoices-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ invoiceIds: selectedInvoices.map(inv => inv.id) })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `invoices-${todayLocal()}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Success', description: `Downloaded ${selectedInvoices.length} invoice(s) as one PDF` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   }
 
@@ -160,19 +187,14 @@ export default function Invoices() {
     toast({ title: 'Sending emails...', description: `Sending ${selectedNonDrafts.length} invoice(s)` });
 
     let successCount = 0;
-    let errorCount = 0;
+    const failures: { invoiceNumber: string; reason: string }[] = [];
 
     for (const inv of selectedNonDrafts) {
       try {
         // Get client contact email
         const clientEmail = inv.clients?.contact_email || inv.clients?.email;
         if (!clientEmail) {
-          errorCount++;
-          toast({ 
-            title: 'Warning', 
-            description: `No email for client on invoice ${inv.invoice_number}`, 
-            variant: 'destructive' 
-          });
+          failures.push({ invoiceNumber: inv.invoice_number, reason: 'no client email' });
           continue;
         }
 
@@ -182,7 +204,7 @@ export default function Invoices() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             invoiceId: inv.id,
             recipientEmail: clientEmail
           })
@@ -195,19 +217,21 @@ export default function Invoices() {
 
         successCount++;
       } catch (error: any) {
-        errorCount++;
-        toast({ 
-          title: 'Error', 
-          description: `Failed to send ${inv.invoice_number}: ${error.message}`, 
-          variant: 'destructive' 
-        });
+        failures.push({ invoiceNumber: inv.invoice_number, reason: error.message });
       }
     }
 
-    if (successCount > 0) {
-      toast({ 
-        title: 'Success', 
-        description: `Sent ${successCount} invoice(s)${errorCount > 0 ? `, ${errorCount} failed` : ''}` 
+    if (failures.length === 0) {
+      toast({ title: 'Success', description: `Sent ${successCount} invoice(s)` });
+    } else {
+      const shown = failures.slice(0, 3).map(f => `${f.invoiceNumber}: ${f.reason}`);
+      if (failures.length > 3) {
+        shown.push(`…and ${failures.length - 3} more`);
+      }
+      toast({
+        title: `Sent ${successCount} of ${selectedNonDrafts.length} invoices`,
+        description: shown.join('\n'),
+        variant: 'destructive',
       });
     }
   }
@@ -275,71 +299,184 @@ export default function Invoices() {
         )}
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedIds.size === filteredInvoices.length && filteredInvoices.length > 0}
-                  onCheckedChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Invoice #</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Paid</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : filteredInvoices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No invoices found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(invoice.id)}
-                      onCheckedChange={() => toggleSelect(invoice.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Link 
-                      to={`/invoices/${invoice.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {invoice.invoice_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{invoice.clients?.name || '-'}</TableCell>
-                  <TableCell>{invoice.issue_date}</TableCell>
-                  <TableCell>{invoice.due_date}</TableCell>
-                  <TableCell>{formatCurrency(invoice.total)}</TableCell>
-                  <TableCell>{formatCurrency(invoice.amount_paid)}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
-                      {invoice.status.replace('_', ' ')}
-                    </Badge>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={statusFilter === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('all')}
+        >
+          All ({invoices.length})
+        </Button>
+        {STATUS_FILTER_ORDER.filter(status => statusCounts[status] > 0).map(status => (
+          <Button
+            key={status}
+            variant={statusFilter === status ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter(status)}
+          >
+            {humanizeStatus(status)} ({statusCounts[status]})
+          </Button>
+        ))}
+      </div>
+
+      {loading ? (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12" />
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Loading...
                   </TableCell>
                 </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            <p className="text-center py-8 text-muted-foreground">Loading...</p>
+          </div>
+        </>
+      ) : invoices.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No invoices yet"
+          description="Create your first invoice to start billing clients."
+          action={
+            <Button asChild>
+              <Link to="/invoices/new">
+                <Plus className="h-4 w-4 mr-2" />
+                New Invoice
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* table (desktop) */}
+          <div className="hidden md:block rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedIds.size === filteredInvoices.length && filteredInvoices.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        {search ? `No matches for "${search}"` : 'No matches for the current filters'}
+                      </p>
+                      <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+                        Clear filters
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(invoice.id)}
+                          onCheckedChange={() => toggleSelect(invoice.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          to={`/invoices/${invoice.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {invoice.invoice_number}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{invoice.clients?.name || '-'}</TableCell>
+                      <TableCell>{formatDisplayDate(invoice.issue_date)}</TableCell>
+                      <TableCell>{formatDisplayDate(invoice.due_date)}</TableCell>
+                      <TableCell>{formatCurrency(invoice.total)}</TableCell>
+                      <TableCell>{formatCurrency(invoice.amount_paid)}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
+                          {invoice.status.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* cards (mobile) */}
+          <div className="space-y-3 md:hidden">
+            {filteredInvoices.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  {search ? `No matches for "${search}"` : 'No matches for the current filters'}
+                </p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              </div>
+            ) : (
+              filteredInvoices.map((invoice) => (
+                <div key={invoice.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
+                  <Checkbox
+                    className="mt-1"
+                    checked={selectedIds.has(invoice.id)}
+                    onCheckedChange={() => toggleSelect(invoice.id)}
+                  />
+                  <Link
+                    to={`/invoices/${invoice.id}`}
+                    className="block flex-1 min-w-0 transition-colors active:opacity-70"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium">{invoice.invoice_number}</span>
+                      <Badge variant={statusColors[invoice.status] as any || 'secondary'}>
+                        {invoice.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{invoice.clients?.name || '-'}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {formatDisplayDate(invoice.issue_date)} – {formatDisplayDate(invoice.due_date)}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Paid {formatCurrency(invoice.amount_paid)}</span>
+                      <span className="font-semibold">{formatCurrency(invoice.total)}</span>
+                    </div>
+                  </Link>
+                </div>
               ))
             )}
-          </TableBody>
-        </Table>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
