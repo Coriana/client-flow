@@ -97,7 +97,7 @@ export default function KnowledgeBase() {
   function getStatusBadge(status: string) {
     switch (status) {
       case 'published':
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Published</Badge>;
+        return <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">Published</Badge>;
       case 'draft':
         return <Badge variant="secondary">Draft</Badge>;
       case 'archived':
@@ -180,7 +180,7 @@ export default function KnowledgeBase() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-green-500/10">
-                <FileText className="h-5 w-5 text-green-600" />
+                <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
@@ -195,7 +195,7 @@ export default function KnowledgeBase() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10">
-                <Eye className="h-5 w-5 text-blue-600" />
+                <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
@@ -210,7 +210,7 @@ export default function KnowledgeBase() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-purple-500/10">
-                <CheckCircle className="h-5 w-5 text-purple-600" />
+                <CheckCircle className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">

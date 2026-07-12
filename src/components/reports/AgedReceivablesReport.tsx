@@ -145,7 +145,7 @@ export default function AgedReceivablesReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Current</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(buckets.current)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(buckets.current)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -153,7 +153,7 @@ export default function AgedReceivablesReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">1-30 Days</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{formatCurrency(buckets.days30)}</div>
+            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{formatCurrency(buckets.days30)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -161,7 +161,7 @@ export default function AgedReceivablesReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">31-60 Days</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(buckets.days60)}</div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(buckets.days60)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -169,7 +169,7 @@ export default function AgedReceivablesReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">90+ Days</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(buckets.days90)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(buckets.days90)}</div>
           </CardContent>
         </Card>
         <Card>

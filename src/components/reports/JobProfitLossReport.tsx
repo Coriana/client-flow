@@ -190,7 +190,7 @@ export default function JobProfitLossReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.revenue)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.revenue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -222,7 +222,7 @@ export default function JobProfitLossReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Written Off</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totals.writtenOff)}</div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(totals.writtenOff)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -230,7 +230,7 @@ export default function JobProfitLossReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Net Profit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${totals.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {formatCurrency(totals.profit)}
             </div>
           </CardContent>
@@ -286,11 +286,11 @@ export default function JobProfitLossReport() {
                     <TableCell className="text-right">{formatCurrency(job.labourCost)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(job.expenseCost)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(job.purchaseCost)}</TableCell>
-                    <TableCell className="text-right text-orange-600">{formatCurrency(job.writtenOff)}</TableCell>
-                    <TableCell className={`text-right font-medium ${job.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <TableCell className="text-right text-orange-600 dark:text-orange-400">{formatCurrency(job.writtenOff)}</TableCell>
+                    <TableCell className={`text-right font-medium ${job.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {formatCurrency(job.profit)}
                     </TableCell>
-                    <TableCell className={`text-right ${job.margin >= 0 ? '' : 'text-red-600'}`}>
+                    <TableCell className={`text-right ${job.margin >= 0 ? '' : 'text-red-600 dark:text-red-400'}`}>
                       {job.margin.toFixed(1)}%
                     </TableCell>
                   </TableRow>

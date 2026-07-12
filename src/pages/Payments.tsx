@@ -229,20 +229,20 @@ export default function Payments() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Income</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalCollected)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalCollected)}</div>
             <p className="text-xs text-muted-foreground">{payments.length} payment{payments.length === 1 ? '' : 's'} received</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Expenses</CardTitle>
-            <Receipt className="h-4 w-4 text-red-600" />
+            <Receipt className="h-4 w-4 text-red-600 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalSpent)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalSpent)}</div>
             <p className="text-xs text-muted-foreground">{purchases.length} payment{purchases.length === 1 ? '' : 's'} made</p>
           </CardContent>
         </Card>
@@ -252,7 +252,7 @@ export default function Payments() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalCollected - totalSpent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${totalCollected - totalSpent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {formatCurrency(totalCollected - totalSpent)}
             </div>
           </CardContent>
@@ -360,7 +360,7 @@ export default function Payments() {
                           <TableCell>{payment.invoices?.clients?.name || '-'}</TableCell>
                           <TableCell className="capitalize">{payment.method?.replace('_', ' ') || '-'}</TableCell>
                           <TableCell>{payment.reference || '-'}</TableCell>
-                          <TableCell className="text-right font-medium text-green-600">+{formatCurrency(payment.amount)}</TableCell>
+                          <TableCell className="text-right font-medium text-green-600 dark:text-green-400">+{formatCurrency(payment.amount)}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -385,7 +385,7 @@ export default function Payments() {
                       className="block rounded-lg border bg-card p-4 transition-colors active:bg-muted"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-semibold text-green-600">+{formatCurrency(payment.amount)}</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">+{formatCurrency(payment.amount)}</span>
                         <span className="text-sm text-muted-foreground">{formatDisplayDate(payment.date)}</span>
                       </div>
                       <p className="mt-1 text-sm font-medium">
@@ -495,7 +495,7 @@ export default function Payments() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-medium text-red-600">-{formatCurrency(purchase.total)}</TableCell>
+                          <TableCell className="text-right font-medium text-red-600 dark:text-red-400">-{formatCurrency(purchase.total)}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => openEditPurchase(purchase)}>
                               <Edit className="h-4 w-4" />
@@ -526,7 +526,7 @@ export default function Payments() {
                       className="block w-full rounded-lg border bg-card p-4 text-left transition-colors active:bg-muted"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-semibold text-red-600">-{formatCurrency(purchase.total)}</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">-{formatCurrency(purchase.total)}</span>
                         <span className="text-sm text-muted-foreground">{formatDisplayDate(purchase.date)}</span>
                       </div>
                       <p className="mt-1 text-sm font-medium">{purchase.vendors?.name || purchase.vendor_name || '-'}</p>

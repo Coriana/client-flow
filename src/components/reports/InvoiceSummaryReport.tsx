@@ -184,7 +184,7 @@ export default function InvoiceSummaryReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.paid)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.paid)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -192,7 +192,7 @@ export default function InvoiceSummaryReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{formatCurrency(summary.outstanding)}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(summary.outstanding)}</div>
           </CardContent>
         </Card>
       </div>
@@ -232,8 +232,8 @@ export default function InvoiceSummaryReport() {
                   <TableCell>{format(new Date(inv.due_date), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>{getStatusBadge(inv.status)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(inv.total)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(inv.amount_paid)}</TableCell>
-                  <TableCell className="text-right text-amber-600">{formatCurrency(inv.total - inv.amount_paid)}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(inv.amount_paid)}</TableCell>
+                  <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(inv.total - inv.amount_paid)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

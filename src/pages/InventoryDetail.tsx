@@ -225,10 +225,10 @@ export default function InventoryDetail() {
 
   const getMovementIcon = (type: string) => {
     switch (type) {
-      case 'purchase': return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
-      case 'consume': return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
-      case 'adjust': return <RefreshCw className="h-4 w-4 text-blue-500" />;
-      case 'return': return <ArrowDownCircle className="h-4 w-4 text-amber-500" />;
+      case 'purchase': return <ArrowDownCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
+      case 'consume': return <ArrowUpCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
+      case 'adjust': return <RefreshCw className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
+      case 'return': return <ArrowDownCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
       default: return <Package className="h-4 w-4 text-muted-foreground" />;
     }
   };
@@ -412,7 +412,7 @@ export default function InventoryDetail() {
                       {record.type === 'price_change' ? (
                         <>
                           <div className="flex gap-3">
-                            <RefreshCw className="h-4 w-4 text-blue-500 mt-1" />
+                            <RefreshCw className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-1" />
                             <div>
                               <div className="text-sm font-medium flex items-center gap-2">
                                 Price Change
@@ -462,7 +462,7 @@ export default function InventoryDetail() {
                             </div>
                           </div>
                           <div className="text-right text-sm">
-                            <div className={record.movementType === 'consume' ? 'text-red-600' : 'text-green-600'}>
+                            <div className={record.movementType === 'consume' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
                               {record.movementType === 'consume' ? '-' : '+'}{record.quantity} {item.unit}
                             </div>
                             {record.unitCost && (

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -64,65 +65,67 @@ const queryClient = new QueryClient({
 });
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <PermissionProvider>
-          <BrandingProvider>
-            <Toaster />
-            <Sonner />
-            <ConfirmProvider>
-              <BrowserRouter>
-                <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading…</div>}>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<SignUp />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="clients" element={<Clients />} />
-                    <Route path="clients/:id" element={<ClientDetail />} />
-                    <Route path="contacts" element={<Contacts />} />
-                    <Route path="contacts/:id" element={<ContactDetail />} />
-                    <Route path="jobs" element={<Jobs />} />
-                    <Route path="jobs/:id" element={<JobDetail />} />
-                    <Route path="invoices" element={<Invoices />} />
-                    <Route path="invoices/:id" element={<InvoiceDetail />} />
-                    <Route path="payments" element={<Payments />} />
-                    <Route path="banking" element={<Banking />} />
-                    <Route path="banking/:id" element={<BankAccountDetail />} />
-                    <Route path="inventory" element={<Inventory />} />
-                    <Route path="inventory/:id" element={<InventoryDetail />} />
-                    <Route path="assets" element={<Assets />} />
-                    <Route path="assets/:id" element={<AssetDetail />} />
-                    <Route path="issues" element={<Issues />} />
-                    <Route path="issues/:id" element={<IssueDetail />} />
-                    <Route path="vendors" element={<Vendors />} />
-                    <Route path="vendors/:id" element={<VendorDetail />} />
-                    <Route path="reports" element={<Reports />} />
-                    <Route path="team" element={<Team />} />
-                    <Route path="team/:id" element={<TeamMemberDetail />} />
-                    <Route path="roles" element={<Roles />} />
-                    <Route path="api-keys" element={<ApiKeys />} />
-                    <Route path="settings" element={<Settings />} />
-                    <Route path="knowledge-base" element={<KnowledgeBase />} />
-                    <Route path="knowledge-base/:id" element={<KBArticleDetail />} />
-                    <Route path="locations" element={<Locations />} />
-                    <Route path="locations/:id" element={<LocationDetail />} />
-                    <Route path="docs" element={<Docs />} />
-                    <Route path="activity-log" element={<ActivityLog />} />
-                  </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                </Suspense>
-              </BrowserRouter>
-            </ConfirmProvider>
-          </BrandingProvider>
-        </PermissionProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <PermissionProvider>
+            <BrandingProvider>
+              <Toaster />
+              <Sonner />
+              <ConfirmProvider>
+                <BrowserRouter>
+                  <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading…</div>}>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<SignUp />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                      <Route index element={<Dashboard />} />
+                      <Route path="clients" element={<Clients />} />
+                      <Route path="clients/:id" element={<ClientDetail />} />
+                      <Route path="contacts" element={<Contacts />} />
+                      <Route path="contacts/:id" element={<ContactDetail />} />
+                      <Route path="jobs" element={<Jobs />} />
+                      <Route path="jobs/:id" element={<JobDetail />} />
+                      <Route path="invoices" element={<Invoices />} />
+                      <Route path="invoices/:id" element={<InvoiceDetail />} />
+                      <Route path="payments" element={<Payments />} />
+                      <Route path="banking" element={<Banking />} />
+                      <Route path="banking/:id" element={<BankAccountDetail />} />
+                      <Route path="inventory" element={<Inventory />} />
+                      <Route path="inventory/:id" element={<InventoryDetail />} />
+                      <Route path="assets" element={<Assets />} />
+                      <Route path="assets/:id" element={<AssetDetail />} />
+                      <Route path="issues" element={<Issues />} />
+                      <Route path="issues/:id" element={<IssueDetail />} />
+                      <Route path="vendors" element={<Vendors />} />
+                      <Route path="vendors/:id" element={<VendorDetail />} />
+                      <Route path="reports" element={<Reports />} />
+                      <Route path="team" element={<Team />} />
+                      <Route path="team/:id" element={<TeamMemberDetail />} />
+                      <Route path="roles" element={<Roles />} />
+                      <Route path="api-keys" element={<ApiKeys />} />
+                      <Route path="settings" element={<Settings />} />
+                      <Route path="knowledge-base" element={<KnowledgeBase />} />
+                      <Route path="knowledge-base/:id" element={<KBArticleDetail />} />
+                      <Route path="locations" element={<Locations />} />
+                      <Route path="locations/:id" element={<LocationDetail />} />
+                      <Route path="docs" element={<Docs />} />
+                      <Route path="activity-log" element={<ActivityLog />} />
+                    </Route>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                  </Suspense>
+                </BrowserRouter>
+              </ConfirmProvider>
+            </BrandingProvider>
+          </PermissionProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

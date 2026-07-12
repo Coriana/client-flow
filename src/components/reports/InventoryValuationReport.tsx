@@ -147,7 +147,7 @@ export default function InventoryValuationReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Sales Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.salesValue)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.salesValue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -163,7 +163,7 @@ export default function InventoryValuationReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Low Stock</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{totals.lowStock}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{totals.lowStock}</div>
             <p className="text-xs text-muted-foreground">items need reorder</p>
           </CardContent>
         </Card>
@@ -248,7 +248,7 @@ export default function InventoryValuationReport() {
                   <TableCell>{item.category || '-'}</TableCell>
                   <TableCell className="text-right">
                     {item.current_stock <= item.reorder_level && item.is_active ? (
-                      <span className="text-amber-600 font-medium">{item.current_stock}</span>
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">{item.current_stock}</span>
                     ) : (
                       item.current_stock
                     )}

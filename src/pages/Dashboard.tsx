@@ -334,7 +334,7 @@ export default function Dashboard() {
       case 'clients': return 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400';
       case 'assets': return 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900 dark:text-cyan-400';
       case 'items': return 'bg-amber-100 text-amber-600 dark:bg-amber-900 dark:text-amber-400';
-      default: return 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -415,7 +415,7 @@ export default function Dashboard() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.totalBankBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${stats.totalBankBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               {formatCurrency(stats.totalBankBalance)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -506,7 +506,7 @@ export default function Dashboard() {
                       <Badge variant="secondary" className="text-xs">Default</Badge>
                     )}
                   </div>
-                  <p className={`text-xl font-bold mt-2 ${Number(account.current_balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-xl font-bold mt-2 ${Number(account.current_balance) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {formatCurrency(Number(account.current_balance))}
                   </p>
                 </Link>
@@ -585,7 +585,7 @@ export default function Dashboard() {
                     className="block p-3 rounded-lg hover:bg-muted transition-colors"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 ${severityColors[issue.severity] || 'bg-gray-400'}`} />
+                      <div className={`w-2 h-2 rounded-full mt-2 ${severityColors[issue.severity] || 'bg-muted-foreground'}`} />
                       <div className="flex-1">
                         <p className="font-medium">{issue.title}</p>
                         <p className="text-sm text-muted-foreground">
@@ -614,7 +614,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400" />
               Low Stock Items
               {lowStockItems.length > 0 && (
                 <Badge variant="destructive">{lowStockItems.length}</Badge>
@@ -639,7 +639,7 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">{item.sku}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-medium ${item.current_stock <= 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                        <p className={`font-medium ${item.current_stock <= 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
                           {item.current_stock} in stock
                         </p>
                         <p className="text-xs text-muted-foreground">

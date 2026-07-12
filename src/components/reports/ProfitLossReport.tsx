@@ -179,7 +179,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Income</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(data.income)}</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(data.income)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -187,7 +187,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Expenses</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(data.expenses)}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(data.expenses)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -195,7 +195,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Purchases</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(data.purchases)}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(data.purchases)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -203,7 +203,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Bad Debt</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{formatCurrency(data.writtenOff)}</div>
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(data.writtenOff)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -211,7 +211,7 @@ export default function ProfitLossReport() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Net Profit</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {formatCurrency(data.netProfit)}
                 </div>
               </CardContent>

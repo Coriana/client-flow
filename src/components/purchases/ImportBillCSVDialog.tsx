@@ -571,7 +571,7 @@ export default function ImportBillCSVDialog({
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
                 {savedMappingsCount > 0 && (
-                  <span className="text-green-600 mr-3">
+                  <span className="text-green-600 dark:text-green-400 mr-3">
                     <Bookmark className="h-3 w-3 inline mr-1" />
                     {savedMappingsCount} saved mappings applied
                   </span>
@@ -607,7 +607,7 @@ export default function ImportBillCSVDialog({
                         <p className="text-sm text-muted-foreground">
                           Qty: {row.original.quantity}
                           {multiplier > 1 && (
-                            <span className="text-blue-600 ml-1">
+                            <span className="text-blue-600 dark:text-blue-400 ml-1">
                               × {multiplier} = {effectiveQty} units
                               {row.detected_quantity && (
                                 <span className="text-xs ml-1">({row.detected_quantity.pattern} detected)</span>
@@ -730,9 +730,9 @@ export default function ImportBillCSVDialog({
               <div>
                 <span className="font-medium">{matchedRows.length}</span> items
                 <span className="mx-2">•</span>
-                <span className="text-green-600">{inventoryCount} inventory restocks</span>
+                <span className="text-green-600 dark:text-green-400">{inventoryCount} inventory restocks</span>
                 <span className="mx-2">•</span>
-                <span className="text-yellow-600">{generalCount} general expenses</span>
+                <span className="text-yellow-600 dark:text-yellow-400">{generalCount} general expenses</span>
               </div>
               <div className="font-medium">
                 Total: {formatCurrency(totalAmount)}

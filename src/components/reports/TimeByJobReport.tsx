@@ -194,7 +194,7 @@ export default function TimeByJobReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Billable Hours</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totals.billable.toFixed(1)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totals.billable.toFixed(1)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -224,7 +224,7 @@ export default function TimeByJobReport() {
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
@@ -269,7 +269,7 @@ export default function TimeByJobReport() {
                       <Link to={`/clients/${row.client_id}`} className="hover:underline">{row.client_name}</Link>
                     ) : row.client_name}
                   </TableCell>
-                  <TableCell className="text-right text-green-600">{row.billable_hours.toFixed(1)}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{row.billable_hours.toFixed(1)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{row.non_billable_hours.toFixed(1)}</TableCell>
                   <TableCell className="text-right font-medium">{row.total_hours.toFixed(1)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.billable_value)}</TableCell>
@@ -281,7 +281,7 @@ export default function TimeByJobReport() {
               {data.length > 0 && (
                 <TableRow className="font-bold bg-muted/50">
                   <TableCell colSpan={2}>Total</TableCell>
-                  <TableCell className="text-right text-green-600">{totals.billable.toFixed(1)}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{totals.billable.toFixed(1)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{totals.nonBillable.toFixed(1)}</TableCell>
                   <TableCell className="text-right">{totals.total.toFixed(1)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(totals.value)}</TableCell>

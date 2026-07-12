@@ -289,11 +289,11 @@ export function ReconciliationPanel({ bankAccountId, onReconciled }: Reconciliat
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-green-600">
+          <Badge variant="outline" className="text-green-600 dark:text-green-400">
             <TrendingUp className="h-3 w-3 mr-1" />
             {payments.length} payments
           </Badge>
-          <Badge variant="outline" className="text-red-600">
+          <Badge variant="outline" className="text-red-600 dark:text-red-400">
             <TrendingDown className="h-3 w-3 mr-1" />
             {purchases.length} bills
           </Badge>
@@ -304,7 +304,7 @@ export function ReconciliationPanel({ bankAccountId, onReconciled }: Reconciliat
       {transactions.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-600" />
+            <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-600 dark:text-green-400" />
             <p className="font-medium">All transactions reconciled!</p>
             <p className="text-sm">Import more transactions to continue reconciling.</p>
           </CardContent>
@@ -330,7 +330,7 @@ export function ReconciliationPanel({ bankAccountId, onReconciled }: Reconciliat
                       <TableCell>{format(new Date(transaction.date), 'dd/MM/yyyy')}</TableCell>
                       <TableCell className="max-w-xs truncate">{transaction.description}</TableCell>
                       <TableCell className="text-right">
-                        <span className={`flex items-center justify-end gap-1 ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`flex items-center justify-end gap-1 ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           {transaction.amount >= 0 ? (
                             <TrendingUp className="h-3 w-3" />
                           ) : (
@@ -384,7 +384,7 @@ export function ReconciliationPanel({ bankAccountId, onReconciled }: Reconciliat
                         {format(new Date(selectedTransaction.date), 'dd/MM/yyyy')}
                       </p>
                     </div>
-                    <p className={`text-lg font-bold ${selectedTransaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-lg font-bold ${selectedTransaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       ${Math.abs(selectedTransaction.amount).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
                     </p>
                   </div>

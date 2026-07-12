@@ -897,7 +897,7 @@ export default function JobDetail() {
               <CardTitle className="text-sm font-medium">Profit</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(profit)}
               </div>
             </CardContent>
@@ -1411,8 +1411,8 @@ export default function JobDetail() {
                           <div className="font-medium">{ts.hours} hours - {formatDisplayDate(ts.date)}</div>
                           <div className="text-sm text-muted-foreground">
                             {ts.description || 'No description'} • {ts.user_name}
-                            {ts.is_billable && <span className="ml-2 text-green-600">Billable</span>}
-                            {isLocked && <span className="ml-2 text-amber-600">Invoiced</span>}
+                            {ts.is_billable && <span className="ml-2 text-green-600 dark:text-green-400">Billable</span>}
+                            {isLocked && <span className="ml-2 text-amber-600 dark:text-amber-400">Invoiced</span>}
                           </div>
                         </div>
                         {!isLocked && (
@@ -1528,8 +1528,8 @@ export default function JobDetail() {
                           <div className="text-sm text-muted-foreground">
                             {exp.description}
                             {exp.category && ` • ${exp.category}`}
-                            {exp.is_billable && <span className="ml-2 text-green-600">Billable</span>}
-                            {isLocked && <span className="ml-2 text-amber-600">Invoiced</span>}
+                            {exp.is_billable && <span className="ml-2 text-green-600 dark:text-green-400">Billable</span>}
+                            {isLocked && <span className="ml-2 text-amber-600 dark:text-amber-400">Invoiced</span>}
                           </div>
                         </div>
                         {!isLocked && (
@@ -1586,7 +1586,7 @@ export default function JobDetail() {
                               <SelectItem key={item.id} value={item.id}>
                                 <div className="flex items-center gap-2">
                                   {item.name} ({item.current_stock} in stock)
-                                  {isLowStock && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                                  {isLowStock && <AlertTriangle className="h-3 w-3 text-amber-500 dark:text-amber-400" />}
                                 </div>
                               </SelectItem>
                             );
@@ -1690,8 +1690,8 @@ export default function JobDetail() {
                       <div className="text-right">
                         <div className="font-medium">{formatCurrency(inv.total)}</div>
                         <div className={`text-sm ${
-                          inv.status === 'paid' ? 'text-green-600' :
-                          inv.status === 'overdue' ? 'text-red-600' :
+                          inv.status === 'paid' ? 'text-green-600 dark:text-green-400' :
+                          inv.status === 'overdue' ? 'text-red-600 dark:text-red-400' :
                           'text-muted-foreground'
                         }`}>
                           {inv.status}

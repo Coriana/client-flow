@@ -172,28 +172,28 @@ export default function GSTSummaryReport() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
               GST Collected (1A)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.gstCollected)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.gstCollected)}</div>
             <p className="text-xs text-muted-foreground">on sales of {formatCurrency(totals.salesExGST)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
+              <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
               GST Paid (1B)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totals.gstPaid)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totals.gstPaid)}</div>
             <p className="text-xs text-muted-foreground">on purchases of {formatCurrency(totals.purchasesExGST)}</p>
           </CardContent>
         </Card>
-        <Card className={totals.netGST >= 0 ? 'border-orange-200 bg-orange-50/50' : 'border-green-200 bg-green-50/50'}>
+        <Card className={totals.netGST >= 0 ? 'border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/50' : 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/50'}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
@@ -201,7 +201,7 @@ export default function GSTSummaryReport() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totals.netGST >= 0 ? 'text-orange-600' : 'text-green-600'}`}>
+            <div className={`text-2xl font-bold ${totals.netGST >= 0 ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}`}>
               {formatCurrency(Math.abs(totals.netGST))}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -247,7 +247,7 @@ export default function GSTSummaryReport() {
                       <TableCell>{inv.client_name}</TableCell>
                       <TableCell>{format(new Date(inv.issue_date), 'dd/MM/yyyy')}</TableCell>
                       <TableCell className="text-right">{formatCurrency(inv.subtotal)}</TableCell>
-                      <TableCell className="text-right text-green-600">{formatCurrency(inv.tax_total)}</TableCell>
+                      <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(inv.tax_total)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(inv.total)}</TableCell>
                     </TableRow>
                   ))}
@@ -261,7 +261,7 @@ export default function GSTSummaryReport() {
                   <TableRow className="font-bold border-t-2">
                     <TableCell colSpan={3}>Total</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.salesExGST)}</TableCell>
-                    <TableCell className="text-right text-green-600">{formatCurrency(totals.gstCollected)}</TableCell>
+                    <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(totals.gstCollected)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.salesExGST + totals.gstCollected)}</TableCell>
                   </TableRow>
                 </>
@@ -303,7 +303,7 @@ export default function GSTSummaryReport() {
                       <TableCell>{p.vendor_name}</TableCell>
                       <TableCell>{format(new Date(p.date), 'dd/MM/yyyy')}</TableCell>
                       <TableCell className="text-right">{formatCurrency(p.amount)}</TableCell>
-                      <TableCell className="text-right text-red-600">{formatCurrency(p.tax_amount)}</TableCell>
+                      <TableCell className="text-right text-red-600 dark:text-red-400">{formatCurrency(p.tax_amount)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(p.total)}</TableCell>
                     </TableRow>
                   ))}
@@ -317,7 +317,7 @@ export default function GSTSummaryReport() {
                   <TableRow className="font-bold border-t-2">
                     <TableCell colSpan={3}>Total</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.purchasesExGST)}</TableCell>
-                    <TableCell className="text-right text-red-600">{formatCurrency(totals.gstPaid)}</TableCell>
+                    <TableCell className="text-right text-red-600 dark:text-red-400">{formatCurrency(totals.gstPaid)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.purchasesExGST + totals.gstPaid)}</TableCell>
                   </TableRow>
                 </>

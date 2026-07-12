@@ -287,7 +287,7 @@ export default function VendorDetail() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${(vendor.credit_balance || 0) > 0 ? 'text-green-600' : ''}`}>
+            <div className={`text-2xl font-bold ${(vendor.credit_balance || 0) > 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
               {formatCurrency(vendor.credit_balance || 0)}
             </div>
           </CardContent>

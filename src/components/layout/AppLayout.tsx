@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import {
   LayoutDashboard,
   Users,
@@ -21,7 +22,11 @@ import {
   HelpCircle,
   History,
   User,
-  Search
+  Search,
+  Sun,
+  Moon,
+  Monitor,
+  Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +34,12 @@ import { usePermissions } from '@/contexts/PermissionContext';
 import { useBranding } from '@/contexts/BrandingContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import MyProfileDialog from '@/components/MyProfileDialog';
 import CommandPalette, { getCommandShortcutLabel } from '@/components/CommandPalette';
 
@@ -100,6 +111,7 @@ export default function AppLayout() {
   const { user, signOut } = useAuth();
   const { canRead, role, loading: permissionsLoading } = usePermissions();
   const { branding } = useBranding();
+  const { theme, setTheme } = useTheme();
 
   const openCommandPalette = () => {
     setCommandPaletteOpen(true);
@@ -205,24 +217,50 @@ export default function AppLayout() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex-1"
               onClick={() => setProfileOpen(true)}
             >
               <User className="h-4 w-4 mr-2" />
               Profile
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex-1"
               onClick={signOut}
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign out
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="relative shrink-0 px-2">
+                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Toggle theme</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme('light')}>
+                  <Sun className="h-4 w-4 mr-2" />
+                  Light
+                  {theme === 'light' && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                  <Moon className="h-4 w-4 mr-2" />
+                  Dark
+                  {theme === 'dark' && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')}>
+                  <Monitor className="h-4 w-4 mr-2" />
+                  System
+                  {theme === 'system' && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </aside>

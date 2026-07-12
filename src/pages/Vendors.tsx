@@ -207,7 +207,7 @@ export default function Vendors() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalCredit)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalCredit)}</div>
             <p className="text-xs text-muted-foreground">
               Across all vendors
             </p>
@@ -281,7 +281,7 @@ export default function Vendors() {
                           <TableCell>{vendor.contact_phone || '-'}</TableCell>
                           <TableCell>
                             {(vendor.credit_balance || 0) > 0 ? (
-                              <span className="text-green-600 font-medium">
+                              <span className="text-green-600 dark:text-green-400 font-medium">
                                 {formatCurrency(vendor.credit_balance || 0)}
                               </span>
                             ) : (

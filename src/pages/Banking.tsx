@@ -256,7 +256,7 @@ export default function Banking() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${totalBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
               ${totalBalance.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -267,10 +267,10 @@ export default function Banking() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Positive Balances</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
               ${positiveAccounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -281,10 +281,10 @@ export default function Banking() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Negative Balances</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+            <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               ${Math.abs(negativeAccounts.reduce((sum, acc) => sum + Number(acc.current_balance), 0)).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -335,7 +335,7 @@ export default function Banking() {
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className={`text-2xl font-bold ${Number(account.current_balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className={`text-2xl font-bold ${Number(account.current_balance) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         ${Number(account.current_balance).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
                       </p>
                       {account.bsb && account.account_number && (

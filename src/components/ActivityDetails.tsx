@@ -117,7 +117,7 @@ export default function ActivityDetails({ action, oldValues, newValues }: Activi
           <div key={change.field} className="flex items-start gap-2 text-sm">
             {change.type === "added" && (
               <>
-                <Plus className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <Plus className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                 <span className="font-medium text-muted-foreground min-w-[120px]">
                   {formatFieldName(change.field)}:
                 </span>
@@ -128,7 +128,7 @@ export default function ActivityDetails({ action, oldValues, newValues }: Activi
             )}
             {change.type === "removed" && (
               <>
-                <Minus className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <Minus className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                 <span className="font-medium text-muted-foreground min-w-[120px]">
                   {formatFieldName(change.field)}:
                 </span>
@@ -139,7 +139,7 @@ export default function ActivityDetails({ action, oldValues, newValues }: Activi
             )}
             {change.type === "changed" && (
               <>
-                <ArrowRight className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <span className="font-medium text-muted-foreground min-w-[120px]">
                   {formatFieldName(change.field)}:
                 </span>

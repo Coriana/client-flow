@@ -214,7 +214,7 @@ export default function AssetRegisterReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">In Service</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totals.inService}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totals.inService}</div>
           </CardContent>
         </Card>
         <Card>
@@ -222,7 +222,7 @@ export default function AssetRegisterReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Spare</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{totals.spare}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{totals.spare}</div>
           </CardContent>
         </Card>
         <Card>
@@ -254,7 +254,7 @@ export default function AssetRegisterReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Rental</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.monthlyRentalIncome)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.monthlyRentalIncome)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -262,7 +262,7 @@ export default function AssetRegisterReport() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Warranty Expiring</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{totals.warrantyExpiring}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{totals.warrantyExpiring}</div>
             <p className="text-xs text-muted-foreground">within 3 months</p>
           </CardContent>
         </Card>
@@ -329,7 +329,7 @@ export default function AssetRegisterReport() {
                     </TableCell>
                     <TableCell>
                       {asset.warranty_end ? (
-                        <span className={warrantyExpired ? 'text-destructive' : warrantyExpiring ? 'text-amber-600' : ''}>
+                        <span className={warrantyExpired ? 'text-destructive' : warrantyExpiring ? 'text-amber-600 dark:text-amber-400' : ''}>
                           {format(new Date(asset.warranty_end), 'dd/MM/yyyy')}
                           {warrantyExpired && ' (Expired)'}
                         </span>

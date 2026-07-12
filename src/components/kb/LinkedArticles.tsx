@@ -27,12 +27,12 @@ interface LinkedArticlesProps {
 }
 
 const LINK_TYPES: Record<string, { label: string; color: string }> = {
-  reference: { label: 'Reference', color: 'bg-gray-500/10 text-gray-600' },
-  diagnosis: { label: 'Diagnosis', color: 'bg-blue-500/10 text-blue-600' },
-  procedure: { label: 'Procedure', color: 'bg-purple-500/10 text-purple-600' },
-  resolution: { label: 'Resolution', color: 'bg-green-500/10 text-green-600' },
-  disposal: { label: 'Disposal', color: 'bg-orange-500/10 text-orange-600' },
-  vendor_specific: { label: 'Vendor Specific', color: 'bg-yellow-500/10 text-yellow-700' },
+  reference: { label: 'Reference', color: 'bg-muted text-muted-foreground' },
+  diagnosis: { label: 'Diagnosis', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  procedure: { label: 'Procedure', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+  resolution: { label: 'Resolution', color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
+  disposal: { label: 'Disposal', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+  vendor_specific: { label: 'Vendor Specific', color: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' },
 };
 
 export default function LinkedArticles({ issueId, linkedArticles, onRefresh }: LinkedArticlesProps) {
@@ -66,8 +66,8 @@ export default function LinkedArticles({ issueId, linkedArticles, onRefresh }: L
   }
 
   function getHelpedIcon(helped: boolean | null) {
-    if (helped === true) return <CheckCircle className="h-4 w-4 text-green-500" />;
-    if (helped === false) return <XCircle className="h-4 w-4 text-red-500" />;
+    if (helped === true) return <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />;
+    if (helped === false) return <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
     return null;
   }
 

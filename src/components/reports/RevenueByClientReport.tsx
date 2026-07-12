@@ -147,7 +147,7 @@ export default function RevenueByClientReport() {
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" tickFormatter={(v) => formatCurrency(v)} />
                 <YAxis type="category" dataKey="name" width={120} />
                 <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -184,8 +184,8 @@ export default function RevenueByClientReport() {
                   </TableCell>
                   <TableCell className="text-right">{row.invoice_count}</TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(row.total_revenue)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(row.paid_amount)}</TableCell>
-                  <TableCell className="text-right text-amber-600">{formatCurrency(row.outstanding)}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(row.paid_amount)}</TableCell>
+                  <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(row.outstanding)}</TableCell>
                   <TableCell className="text-right">{totalRevenue > 0 ? ((row.total_revenue / totalRevenue) * 100).toFixed(1) : 0}%</TableCell>
                 </TableRow>
               ))}
@@ -194,8 +194,8 @@ export default function RevenueByClientReport() {
                   <TableCell>Total</TableCell>
                   <TableCell className="text-right">{data.reduce((s, c) => s + c.invoice_count, 0)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(totalRevenue)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(data.reduce((s, c) => s + c.paid_amount, 0))}</TableCell>
-                  <TableCell className="text-right text-amber-600">{formatCurrency(data.reduce((s, c) => s + c.outstanding, 0))}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(data.reduce((s, c) => s + c.paid_amount, 0))}</TableCell>
+                  <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(data.reduce((s, c) => s + c.outstanding, 0))}</TableCell>
                   <TableCell className="text-right">100%</TableCell>
                 </TableRow>
               )}

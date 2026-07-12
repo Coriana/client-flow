@@ -203,47 +203,47 @@ export default function BankReconciliationReport() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
               Reconciled
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totals.reconciledCount}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totals.reconciledCount}</div>
             <p className="text-xs text-muted-foreground">of {totals.totalTransactions} transactions</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-orange-600" />
+              <XCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
               Unreconciled
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{totals.unreconciledCount}</div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{totals.unreconciledCount}</div>
             <p className="text-xs text-muted-foreground">need attention</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ArrowUpCircle className="h-4 w-4 text-green-600" />
+              <ArrowUpCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
               Money In
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.moneyIn)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.moneyIn)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ArrowDownCircle className="h-4 w-4 text-red-600" />
+              <ArrowDownCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
               Money Out
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totals.moneyOut)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totals.moneyOut)}</div>
           </CardContent>
         </Card>
       </div>
@@ -259,7 +259,7 @@ export default function BankReconciliationReport() {
         <CardContent>
           <Progress value={reconciliationPercentage} className="h-3" />
           <p className="text-sm text-muted-foreground mt-2">
-            Net Cash Flow: <span className={totals.netCashFlow >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+            Net Cash Flow: <span className={totals.netCashFlow >= 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
               {formatCurrency(totals.netCashFlow)}
             </span>
           </p>
@@ -296,11 +296,11 @@ export default function BankReconciliationReport() {
                   <TableRow key={account.id}>
                     <TableCell className="font-medium">{account.name}</TableCell>
                     <TableCell className="text-right">{account.totalTransactions}</TableCell>
-                    <TableCell className="text-right text-green-600">{account.reconciledCount}</TableCell>
-                    <TableCell className="text-right text-orange-600">{account.unreconciledCount}</TableCell>
-                    <TableCell className="text-right text-green-600">{formatCurrency(account.moneyIn)}</TableCell>
-                    <TableCell className="text-right text-red-600">{formatCurrency(account.moneyOut)}</TableCell>
-                    <TableCell className={`text-right font-medium ${account.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <TableCell className="text-right text-green-600 dark:text-green-400">{account.reconciledCount}</TableCell>
+                    <TableCell className="text-right text-orange-600 dark:text-orange-400">{account.unreconciledCount}</TableCell>
+                    <TableCell className="text-right text-green-600 dark:text-green-400">{formatCurrency(account.moneyIn)}</TableCell>
+                    <TableCell className="text-right text-red-600 dark:text-red-400">{formatCurrency(account.moneyOut)}</TableCell>
+                    <TableCell className={`text-right font-medium ${account.netCashFlow >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {formatCurrency(account.netCashFlow)}
                     </TableCell>
                   </TableRow>
@@ -333,7 +333,7 @@ export default function BankReconciliationReport() {
                     <TableCell>{format(new Date(tx.date), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{tx.accountName}</TableCell>
                     <TableCell className="max-w-xs truncate">{tx.description}</TableCell>
-                    <TableCell className={`text-right ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <TableCell className={`text-right ${tx.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {formatCurrency(tx.amount)}
                     </TableCell>
                   </TableRow>

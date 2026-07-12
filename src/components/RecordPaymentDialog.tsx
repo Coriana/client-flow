@@ -351,7 +351,7 @@ export default function RecordPaymentDialog({ open, onOpenChange, defaultInvoice
                 <span>{formatCurrency((selectedInvoice?.total || 0) - (selectedInvoice?.amount_paid || 0))}</span>
               </div>
               {creditToApply > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
+                <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
                   <span>Credit Applied:</span>
                   <span>-{formatCurrency(creditToApply)}</span>
                 </div>
